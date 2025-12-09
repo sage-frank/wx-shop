@@ -1,0 +1,22 @@
+[package]
+name = "wx-shop"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = "0.8.7"
+tokio = {version = "1.48.0", features = ["full"]}
+route = "0.2.0"
+serde = { version = "1.0.228", features = ["derive"] }
+tracing-subscriber = "0.3.22"
+
+tracing = "0.1.43"
+
+# 确保添加或更新 tower-http
+tower-http = { version = "0.6.8", features = ["trace"] }
+
+sqlx = { version = "0.8.6", features = ["runtime-tokio", "mysql", "chrono", "macros"] } # 使用 MySQL
+config = "0.15.18"
+
+
+
