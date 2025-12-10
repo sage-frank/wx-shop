@@ -13,7 +13,7 @@ impl UserRepository {
     }
     // 模拟数据库查询
     pub async fn find_user_by_id(&self, id: u64) -> Option<models::User> {
-        println!("-> Repo: Looking up user {} in DB...", id);
+        // println!("-> Repo: Looking up user {} in DB...", id);
         let result = sqlx::query_as!(models::User, "SELECT name, email FROM users WHERE id = ?", id)
             .fetch_optional(&self.pool)
             .await;
@@ -22,5 +22,12 @@ impl UserRepository {
             Ok(Some(user)) => Some(user),
             _ => None,
         }
+        /*
+         测试脱离数据库，直接返回user
+           Some(models::User{
+            name:"xxx".to_string(),
+            email: Some("ttt".to_string()),
+        })
+        */
     }
 }

@@ -4,4 +4,4 @@
 # 完整的数据库连接字符串，例如: mysql://user:password@host:port/dbname
 database_url = "mysql://root:root@127.0.0.1:33061/xiaohongshu_b"
 # 连接池的最大连接数
-max_connections = 10
+max_connections = 102
