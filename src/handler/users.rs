@@ -28,7 +28,7 @@ pub async fn get_user_handler(
     // 调用 Service 层处理业务逻辑
     match user_service.get_user(user_id).await {
         Some(user) => {
-            println!("-> Handler: Successfully found user {}", user_id);
+            // println!("-> Handler: Successfully found user {}", user_id);
             let resp_user = UserResp {
                 id: user_id,
                 name: user.name.clone(),
