@@ -1,18 +1,24 @@
 // 确保在 main.rs 开头引入 lib
 mod handler;
+mod models;
 mod repos;
 mod router;
 mod service;
-mod models;
 
-use axum::Extension;
 use axum::Router;
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    /// 配置文件路径
+    #[arg(short, long, default_value = "Settings.toml")]
+    conf: String,
+}
 
 #[tokio::main]
 async fn main() {
-    // tracing_subscriber::fmt()
-    //     .with_max_level(tracing::Level::DEBUG)
-    //     .init();
+    let args = Args::parse();
 
     let (non_blocking_appender, _guard) = tracing_appender::non_blocking(std::io::stdout());
     tracing_subscriber::fmt()
@@ -21,10 +27,10 @@ async fn main() {
         .init();
 
     // --- 1. 加载配置 ---
-    let settings = match wx_shop::Settings::new() {
+    let settings = match wx_shop::Settings::new(&args.conf) {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("Failed to load configuration: {}", e);
+            tracing::error!("加载配置文件失败: {}", e);
             return;
         }
     };
@@ -52,7 +58,8 @@ async fn main() {
     // --- 4. 路由合并与依赖挂载 ---
     let app = Router::new()
         .merge(router::user_routes())
-        .layer(Extension(user_service))
+        .with_state(user_service)
+        // .layer(Extension(user_service))
         .layer(tower_http::trace::TraceLayer::new_for_http());
 
     // --- 5. 启动服务 ---

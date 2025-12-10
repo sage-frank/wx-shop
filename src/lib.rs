@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use sqlx::mysql::MySqlPoolOptions;
 use sqlx::{MySql, Pool};
+use std::path::Path;
 
 /// 数据库配置结构
 #[derive(Debug, Deserialize, Clone)]
@@ -17,9 +18,22 @@ pub struct Settings {
 
 impl Settings {
     /// 从 settings.toml 文件加载配置
-    pub fn new() -> Result<Self, config::ConfigError> {
+    // pub fn new() -> Result<Self, config::ConfigError> {
+    //     let s = config::Config::builder()
+    //         .add_source(config::File::with_name("Settings"))
+    //         .build()?;
+    //
+    //     s.try_deserialize()
+    // }
+
+    pub fn new<P: AsRef<Path>>(config_file_path: P) -> Result<Self, config::ConfigError> {
+        let _path_str = config_file_path.as_ref().to_str().ok_or_else(|| {
+            config::ConfigError::Message("Invalid config file path".to_string())
+        })?;
+
+        // config::File::from 路径更灵活，可以直接使用完整路径。
         let s = config::Config::builder()
-            .add_source(config::File::with_name("Settings"))
+            .add_source(config::File::from(config_file_path.as_ref()))
             .build()?;
 
         s.try_deserialize()

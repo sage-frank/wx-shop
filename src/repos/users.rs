@@ -22,8 +22,9 @@ impl UserRepository {
             Ok(Some(user)) => Some(user),
             _ => None,
         }
+
         /*
-         测试脱离数据库，直接返回user
+
            Some(models::User{
             name:"xxx".to_string(),
             email: Some("ttt".to_string()),

@@ -1,8 +1,9 @@
-use axum::{extract::Path, http::StatusCode, Extension, Json};
+use axum::{extract::Path, http::StatusCode, Json};
 
 use crate::service::users::UserService;
 use serde::Serialize;
 use std::sync::Arc;
+use axum::extract::State;
 
 #[derive(Serialize)]
 pub struct UserResp {
@@ -21,14 +22,15 @@ pub struct UserResponse {
 
 // Handler 函数，通过 Extension 获取 UserService
 pub async fn get_user_handler(
+    // Path 提取器
     Path(user_id): Path<u64>,
-    // 注入 UserService 依赖
-    Extension(user_service): Extension<Arc<UserService>>,
+    // 注入 UserService 依赖：使用 State 提取 Arc<UserService>
+    State(user_service): State<Arc<UserService>>, // <-- 正确！
 ) -> Result<Json<UserResponse>, StatusCode> {
     // 调用 Service 层处理业务逻辑
     match user_service.get_user(user_id).await {
         Some(user) => {
-            // println!("-> Handler: Successfully found user {}", user_id);
+            println!("-> Handler: Successfully found user {}", user_id);
             let resp_user = UserResp {
                 id: user_id,
                 name: user.name.clone(),
