@@ -3,7 +3,6 @@ use axum::{extract::State, http::StatusCode, Json};
 use axum::extract::Path;
 use serde::Deserialize;
 use serde_json;
-use tower_sessions::Session;
 use sha2::{Sha256, Digest};
 use crate::AppState;
 use crate::service::ServiceError;
@@ -33,7 +32,7 @@ pub struct LoginReq {
 
 
 pub async fn login_handler(
-    session: Session,
+    session: tower_sessions::Session,
     State(app_state): State<AppState>,
     Json(payload): Json<LoginReq>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {

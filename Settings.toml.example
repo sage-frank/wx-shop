@@ -2,7 +2,7 @@
 # 数据库配置
 [database]
 # 完整的数据库连接字符串，例如: mysql://user:password@host:port/dbname
-database_url = "mysql://root:falcon%40123@127.0.0.1:3306/xatest1"
+database_url = "mysql://root:root@127.0.0.1:3306/xatest1"
 # 连接池的最大连接数
 max_connections = 102
 
