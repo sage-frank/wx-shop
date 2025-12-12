@@ -1,18 +1,23 @@
-use std::sync::Arc;
-use axum::{routing::get, Router};
-use axum::extract::FromRef;
-pub(crate) use crate::handler::{index, users};
-use crate::service::users::UserService;
-// 导入 Handler
+use axum::{routing::{get, post}, Router, http::StatusCode, response::IntoResponse, Json};
+use crate::handler::{index, users};
+use crate::AppState;
 
-// 封装 User 相关的路由
-pub fn user_routes<S>() -> Router<S>
-where
-    S: Clone + Send + Sync + 'static,
-// S 必须能够从中提取出 Arc<UserService>
-    Arc<UserService>: FromRef<S>,
-{
+// 404 handler
+async fn handler_404() -> impl IntoResponse {
+    (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({
+            "code": 404,
+            "msg": "not found"
+        })),
+    )
+}
+
+pub fn user_routes() -> Router<AppState> {
     Router::new()
-        .route("/users/{id}", get(users::get_user_handler))
-        .route("/",get(index::index))
+        .route("/login", post(users::login_handler))
+        .route("/user/{id}", get(users::get_user_by_id_handler))
+        .route("/debug/hash", post(users::hash_handler))
+        .route("/", get(index::index))
+        .fallback(handler_404)
 }

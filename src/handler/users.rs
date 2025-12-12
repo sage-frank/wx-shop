@@ -1,52 +1,72 @@
-use axum::{extract::Path, http::StatusCode, Json};
+// use crate::service::users::UserService;
+use axum::{extract::State, http::StatusCode, Json};
+use axum::extract::Path;
+use serde::Deserialize;
+use serde_json;
+use tower_sessions::Session;
+use sha2::{Sha256, Digest};
+use crate::AppState;
+use crate::service::ServiceError;
 
-use crate::service::users::UserService;
-use serde::Serialize;
-use std::sync::Arc;
-use axum::extract::State;
-
-#[derive(Serialize)]
-pub struct UserResp {
-    id: u64,
-    name: String,
-    email: String,
+#[derive(Deserialize)]
+pub struct HashReq {
+    pub passwd: String,
+    pub salt: String,
 }
 
-// 定义响应结构体
-#[derive(Serialize)]
-pub struct UserResponse {
-    msg: String,
-    code: u32,
-    data: Vec<UserResp>,
+pub async fn hash_handler(Json(payload): Json<HashReq>) -> Json<serde_json::Value> {
+    let mut hasher = Sha256::new();
+    hasher.update(payload.passwd.as_bytes());
+    hasher.update(payload.salt.as_bytes());
+    let hash = hex::encode(hasher.finalize());
+    
+    Json(serde_json::json!({
+        "hash": hash
+    }))
 }
 
-// Handler 函数，通过 Extension 获取 UserService
-pub async fn get_user_handler(
-    // Path 提取器
-    Path(user_id): Path<u64>,
-    // 注入 UserService 依赖：使用 State 提取 Arc<UserService>
-    State(user_service): State<Arc<UserService>>, // <-- 正确！
-) -> Result<Json<UserResponse>, StatusCode> {
-    // 调用 Service 层处理业务逻辑
-    match user_service.get_user(user_id).await {
-        Some(user) => {
-            println!("-> Handler: Successfully found user {}", user_id);
-            let resp_user = UserResp {
-                id: user_id,
-                name: user.name.clone(),
-                email: user.email.unwrap(),
-            };
+#[derive(Deserialize)]
+pub struct LoginReq {
+    pub username: String,
+    pub passwd: String,
+}
 
-            Ok(Json(UserResponse {
-                code: 0,
-                msg: "success".to_string(),
-                data: vec![resp_user],
-            }))
+
+pub async fn login_handler(
+    session: Session,
+    State(app_state): State<AppState>,
+    Json(payload): Json<LoginReq>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    match app_state.user_service.login(&payload.username, &payload.passwd).await {
+        Ok(user) => {
+            if let Err(e) = session.insert("user", user).await {
+                return Ok(Json(serde_json::json!({
+                    "code": 5000,
+                    "msg": format!("Session error: {}", e)
+                })));
+            } else {
+                Ok(Json(serde_json::json!({
+                    "code": 0,
+                    "msg": "login success"
+                })))
+            }
         }
-        None => Ok(Json(UserResponse {
-            code: 4000,
-            msg: "not found".to_string(),
-            data: vec![],
-        })),
+
+        Err(e) => Ok(Json(serde_json::json!({
+            "code": 4001,
+            "msg": e
+        }))),
     }
+}
+
+
+pub async fn get_user_by_id_handler(
+    State(app_state): State<AppState>,
+    Path(id): Path<u32>,
+) -> Result<Json<serde_json::Value>, ServiceError> {
+    let user = app_state.user_service.find_user_by_id(id).await?;
+    Ok(Json(serde_json::json!({
+        "code": 0,
+        "data": user
+    })))
 }
