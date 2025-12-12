@@ -2,4 +2,4 @@
 .idea
 /logs
 /migrations
-.Session.toml
+Settings.toml
