@@ -1,19 +1,42 @@
 use crate::repos::users::UserRepository;
 use std::sync::Arc;
 use crate::models;
+use sha2::{Sha256, Digest};
+use crate::service::ServiceError;
+
+#[derive(Clone)]
 pub struct UserService {
-    // Service 依赖 Repos，通过 Arc 引用
     repo: Arc<UserRepository>,
 }
 
 impl UserService {
-    pub fn new(repo: Arc<UserRepository>) -> Arc<Self> {
-        Arc::new(Self { repo })
+    pub fn new(repo: Arc<UserRepository>) -> Self { // Removed Arc wrapper for Self, usually service is cloned or Arc-ed in main.
+        Self { repo }
     }
 
-    // 业务逻辑：根据 ID 获取用户
-    pub async fn get_user(&self, id: u64) -> Option<models::User> {
-        // 调用 Repository
-        self.repo.find_user_by_id(id).await
+    pub async fn login(&self, username: &str, password: &str) -> Result<models::User, String> {
+        let user = self.repo.find_by_username(username).await
+            .map_err(|e| e.to_string())?
+            .ok_or("User not found".to_string())?;
+
+        let input_hash = {
+            let mut hasher = Sha256::new();
+            hasher.update(password.as_bytes());
+            hasher.update(user.salt.as_bytes());
+            hex::encode(hasher.finalize())
+        };
+
+        if input_hash == user.passwd {
+            Ok(user)
+        } else {
+            Err("Invalid password".to_string())
+        }
     }
+
+    pub async fn find_user_by_id(&self, id:u32) -> Result<models::User, ServiceError> {
+        let user_opt = self.repo.find_user_by_id(id).await?;
+        let user = user_opt.ok_or_else(|| ServiceError::NotFound(format!("User with ID {} not found", id)))?;
+        Ok(user)
+    }
+    
 }
