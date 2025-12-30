@@ -3,3 +3,5 @@
 /logs
 /migrations
 Settings.toml
+/.trae
+/.idea

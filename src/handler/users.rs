@@ -69,3 +69,44 @@ pub async fn get_user_by_id_handler(
         "data": user
     })))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use crate::service::users::UserService;
+    use crate::models;
+    use std::future::Future;
+    use std::pin::Pin;
+
+    struct MockService;
+
+    impl UserService for MockService {
+        fn login<'a>(&'a self, _username: &'a str, _password: &'a str) -> Pin<Box<dyn Future<Output = Result<models::User, String>> + Send + 'a>> {
+            Box::pin(async { Err("not implemented".into()) })
+        }
+
+        fn find_user_by_id<'a>(&'a self, id:u32) -> Pin<Box<dyn Future<Output = Result<models::User, ServiceError>> + Send + 'a>> {
+            Box::pin(async move {
+                Ok(models::User { id, username: "u".into(), passwd: "p".into(), salt: "s".into(), created_at: None, updated_at: None })
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_user_by_id_handler() {
+        let app_state = AppState { user_service: Arc::new(MockService) };
+        let resp = get_user_by_id_handler(State(app_state), Path(1)).await.unwrap();
+        let v = resp.0;
+        assert_eq!(v["code"], 0);
+        assert_eq!(v["data"]["id"], 1);
+    }
+
+    #[tokio::test]
+    async fn test_hash_handler() {
+        let payload = HashReq { passwd: "a".into(), salt: "b".into() };
+        let resp = hash_handler(Json(payload)).await;
+        let v = resp.0;
+        assert!(v["hash"].is_string());
+    }
+}
