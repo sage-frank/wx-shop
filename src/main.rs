@@ -1,25 +1,23 @@
 // 确保在 main.rs 开头引入 lib
+mod domain;
 mod handler;
 mod models;
 mod repos;
 mod router;
 mod service;
-mod domain;
 
-use axum::{body::Body, Router};
+use axum::{Router, body::Body};
 use clap::Parser;
 use tower_http::trace::TraceLayer;
 
-// use tower_http::trace::TraceLayer;
 use tower_sessions::cookie::time::Duration;
 
+use crate::service::users::{UserService, new_user_service};
+use axum::extract::FromRef;
+use std::sync::Arc;
 use tower_sessions::{Expiry, Session, SessionManagerLayer};
 use tower_sessions_redis_store::RedisStore;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
-use axum::extract::FromRef;
-use std::sync::Arc;
-use crate::service::users::{UserService, new_user_service};
-
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -41,7 +39,6 @@ impl FromRef<AppState> for Arc<dyn UserService> {
     }
 }
 
-
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
@@ -62,7 +59,11 @@ async fn main() {
     let (non_blocking_file, _guard_file) = tracing_appender::non_blocking(file_appender);
     let (non_blocking_stdout, _guard_stdout) = tracing_appender::non_blocking(std::io::stdout());
 
-    let log_level = settings.log.level.parse::<tracing::Level>().unwrap_or(tracing::Level::INFO);
+    let log_level = settings
+        .log
+        .level
+        .parse::<tracing::Level>()
+        .unwrap_or(tracing::Level::INFO);
 
     tracing_subscriber::fmt()
         .with_max_level(log_level)
@@ -104,63 +105,63 @@ async fn main() {
     // 创建 Services，并注入 Repositories
     let user_service = new_user_service(user_repo);
 
-    let app_state = AppState {
-        user_service
-    };
+    let app_state = AppState { user_service };
 
     // --- 4. 路由合并与依赖挂载 ---
     let app = Router::new()
         .merge(router::routes())
         .with_state(app_state)
-        .layer(axum::middleware::from_fn(router::middleware::print_request_body))
+        .layer(axum::middleware::from_fn(
+            router::middleware::print_request_body,
+        ))
         .layer(session_layer)
         .layer(
-            TraceLayer::new_for_http()
-                .make_span_with(|request: &axum::http::Request<Body>| {
-                    // 尝试从请求的 extensions 中获取 Session 实例
-                    let session_id = request
-                        .extensions()
-                        .get::<Session>()
-                        .and_then(|s| s.id().map(|id| id.to_string()))
-                        .unwrap_or_else(|| "N/A".to_string());
+            TraceLayer::new_for_http().make_span_with(|request: &axum::http::Request<Body>| {
+                // 尝试从请求的 extensions 中获取 Session 实例
+                let session_id = request
+                    .extensions()
+                    .get::<Session>()
+                    .and_then(|s| s.id().map(|id| id.to_string()))
+                    .unwrap_or_else(|| "N/A".to_string());
 
-                    tracing::info_span!(
+                tracing::info_span!(
                 "request",
                 method = %request.method(),
                 uri = %request.uri(),
                 session_id = %session_id,
-                )}
-                ));
+                )
+            }),
+        );
 
-        // .layer(
-        //     TraceLayer::new_for_http()
-        //         .make_span_with(|request: &axum::http::Request<axum::body::Body>| {
-        //             let session_id = request
-        //                 .extensions()
-        //                 .get::<Session>()
-        //                 .map(|s| s.id().map(|id| id.to_string()).unwrap_or_default())
-        //                 .unwrap_or_default();
-        //
-        //             tracing::info_span!(
-        //                 "request",
-        //                 method = %request.method(),
-        //                 uri = %request.uri(),
-        //                 session_id = %session_id
-        //             )
-        //         })
-        //         .on_request(
-        //             |_request: &axum::http::Request<axum::body::Body>, _span: &tracing::Span| {
-        //                 tracing::info!("started processing request");
-        //             },
-        //         )
-        //         .on_response(
-        //             |_response: &axum::http::Response<axum::body::Body>,
-        //              latency: std::time::Duration,
-        //              _span: &tracing::Span| {
-        //                 tracing::info!("finished processing request in {:?}", latency);
-        //             },
-        //         ),
-        // );
+    // .layer(
+    //     TraceLayer::new_for_http()
+    //         .make_span_with(|request: &axum::http::Request<axum::body::Body>| {
+    //             let session_id = request
+    //                 .extensions()
+    //                 .get::<Session>()
+    //                 .map(|s| s.id().map(|id| id.to_string()).unwrap_or_default())
+    //                 .unwrap_or_default();
+    //
+    //             tracing::info_span!(
+    //                 "request",
+    //                 method = %request.method(),
+    //                 uri = %request.uri(),
+    //                 session_id = %session_id
+    //             )
+    //         })
+    //         .on_request(
+    //             |_request: &axum::http::Request<axum::body::Body>, _span: &tracing::Span| {
+    //                 tracing::info!("started processing request");
+    //             },
+    //         )
+    //         .on_response(
+    //             |_response: &axum::http::Response<axum::body::Body>,
+    //              latency: std::time::Duration,
+    //              _span: &tracing::Span| {
+    //                 tracing::info!("finished processing request in {:?}", latency);
+    //             },
+    //         ),
+    // );
 
     // --- 5. 启动服务 ---
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
