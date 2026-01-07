@@ -63,9 +63,12 @@ pub async fn get_user_by_id_handler(
     State(app_state): State<AppState>,
     Path(id): Path<u32>,
 ) -> Result<Json<serde_json::Value>, ServiceError> {
+    
     let user = app_state.user_service.find_user_by_id(id).await?;
+    
     Ok(Json(serde_json::json!({
         "code": 0,
+        "msg": "success",
         "data": user
     })))
 }
@@ -75,6 +78,7 @@ mod tests {
     use super::*;
     use std::sync::Arc;
     use crate::service::users::UserService;
+    use crate::service::orders::OrderService;
     use crate::models;
     use std::future::Future;
     use std::pin::Pin;
@@ -93,9 +97,28 @@ mod tests {
         }
     }
 
+    struct MockOrderService;
+    impl OrderService for MockOrderService {
+        fn create_order_with_items<'a>(&'a self, _user_id: i32, _pay_amount: Option<f64>, _order_status: i8, _consignee_info: Option<serde_json::Value>, _items: Vec<(i32, String, i32, f64, Option<String>)>) -> Pin<Box<dyn Future<Output = Result<String, ServiceError>> + Send + 'a>> {
+            Box::pin(async { Ok("ORDERID".into()) })
+        }
+        fn delete_order<'a>(&'a self, _order_id: &'a str) -> Pin<Box<dyn Future<Output = Result<(), ServiceError>> + Send + 'a>> {
+            Box::pin(async { Ok(()) })
+        }
+        fn update_order<'a>(&'a self, _order_id: &'a str, _pay_amount: Option<f64>, _order_status: Option<i8>, _consignee_info: Option<serde_json::Value>) -> Pin<Box<dyn Future<Output = Result<(), ServiceError>> + Send + 'a>> {
+            Box::pin(async { Ok(()) })
+        }
+        fn get_order<'a>(&'a self, _order_id: &'a str) -> Pin<Box<dyn Future<Output = Result<models::Order, ServiceError>> + Send + 'a>> {
+            Box::pin(async { Err(ServiceError::NotFound("not found".into())) })
+        }
+        fn get_order_items<'a>(&'a self, _order_id: &'a str) -> Pin<Box<dyn Future<Output = Result<Vec<models::OrderItem>, ServiceError>> + Send + 'a>> {
+            Box::pin(async { Ok(vec![]) })
+        }
+    }
+
     #[tokio::test]
     async fn test_get_user_by_id_handler() {
-        let app_state = AppState { user_service: Arc::new(MockService) };
+        let app_state = AppState { user_service: Arc::new(MockService), order_service: Arc::new(MockOrderService) };
         let resp = get_user_by_id_handler(State(app_state), Path(1)).await.unwrap();
         let v = resp.0;
         assert_eq!(v["code"], 0);

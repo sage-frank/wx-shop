@@ -1,4 +1,5 @@
 pub mod users;
+pub mod orders;
 
 use axum::response::{Response, IntoResponse};
 use axum::{http::StatusCode, Json};
@@ -18,13 +19,14 @@ impl From<sqlx::Error> for ServiceError {
 
 
 impl IntoResponse for ServiceError {
+
     fn into_response(self) -> Response {
+
         match self {
             ServiceError::NotFound(msg) => {
                 // 业务错误：404 Not Found
-                (StatusCode::NOT_FOUND, Json(json!({"code": 4040, "msg": msg}))).into_response()
+                (StatusCode::NOT_FOUND, Json(json!({"code": 4040, "msg": msg, "data":{}}))).into_response()
             }
-            // 假设您处理了 Database 错误
             _ => {
                 // 内部错误：500 Internal Server Error
                 tracing::error!("Unhandled service error: {:?}", self);

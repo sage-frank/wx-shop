@@ -20,7 +20,7 @@ pub async fn require_login(
     };
 
     if !logged_in {
-        return Ok(Json(json!({"code": 4010, "msg": "not logged in"})).into_response());
+        return Ok(Json(json!({"code": 4010, "msg": "not logged in", "data":{}})).into_response());
     }
 
     Ok(next.run(request).await)
