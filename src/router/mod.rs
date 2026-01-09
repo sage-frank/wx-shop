@@ -1,10 +1,10 @@
-use axum::Router;
 use crate::AppState;
+use axum::Router;
 
-pub mod public;
-pub mod protected;
-pub mod middleware;
 pub mod error;
+pub mod middleware;
+pub mod protected;
+pub mod public;
 
 pub fn routes() -> Router<AppState> {
     Router::new()

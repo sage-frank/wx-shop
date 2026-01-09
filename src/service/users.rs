@@ -64,7 +64,8 @@ impl<R: UserRepo + 'static> UserService for UserServiceImpl<R> {
     ) -> Pin<Box<dyn Future<Output = Result<models::User, ServiceError>> + Send + 'a>> {
         Box::pin(async move {
             let user_opt = self.repo.find_user_by_id_blocking(id).await?;
-            let user = user_opt.ok_or_else(|| ServiceError::NotFound(format!("User with ID {} not found", id)))?;
+            let user = user_opt
+                .ok_or_else(|| ServiceError::NotFound(format!("User with ID {} not found", id)))?;
 
             Ok(user)
         })

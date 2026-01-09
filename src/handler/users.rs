@@ -1,11 +1,11 @@
 // use crate::service::users::UserService;
-use axum::{extract::State, http::StatusCode, Json};
-use axum::extract::Path;
-use serde::Deserialize;
-use serde_json;
-use sha2::{Sha256, Digest};
 use crate::AppState;
 use crate::service::ServiceError;
+use axum::extract::Path;
+use axum::{Json, extract::State, http::StatusCode};
+use serde::Deserialize;
+use serde_json;
+use sha2::{Digest, Sha256};
 
 #[derive(Deserialize)]
 pub struct HashReq {
@@ -18,7 +18,7 @@ pub async fn hash_handler(Json(payload): Json<HashReq>) -> Json<serde_json::Valu
     hasher.update(payload.passwd.as_bytes());
     hasher.update(payload.salt.as_bytes());
     let hash = hex::encode(hasher.finalize());
-    
+
     Json(serde_json::json!({
         "hash": hash
     }))
@@ -30,19 +30,22 @@ pub struct LoginReq {
     pub passwd: String,
 }
 
-
 pub async fn login_handler(
     session: tower_sessions::Session,
     State(app_state): State<AppState>,
     Json(payload): Json<LoginReq>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    match app_state.user_service.login(&payload.username, &payload.passwd).await {
+    match app_state
+        .user_service
+        .login(&payload.username, &payload.passwd)
+        .await
+    {
         Ok(user) => {
             if let Err(e) = session.insert("user", user).await {
-                return Ok(Json(serde_json::json!({
+                Ok(Json(serde_json::json!({
                     "code": 5000,
                     "msg": format!("Session error: {}", e)
-                })));
+                })))
             } else {
                 Ok(Json(serde_json::json!({
                     "code": 0,
@@ -58,14 +61,12 @@ pub async fn login_handler(
     }
 }
 
-
 pub async fn get_user_by_id_handler(
     State(app_state): State<AppState>,
     Path(id): Path<u32>,
 ) -> Result<Json<serde_json::Value>, ServiceError> {
-    
     let user = app_state.user_service.find_user_by_id(id).await?;
-    
+
     Ok(Json(serde_json::json!({
         "code": 0,
         "msg": "success",
@@ -76,50 +77,89 @@ pub async fn get_user_by_id_handler(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
-    use crate::service::users::UserService;
-    use crate::service::orders::OrderService;
     use crate::models;
+    use crate::service::orders::OrderService;
+    use crate::service::users::UserService;
     use std::future::Future;
     use std::pin::Pin;
+    use std::sync::Arc;
 
     struct MockService;
 
     impl UserService for MockService {
-        fn login<'a>(&'a self, _username: &'a str, _password: &'a str) -> Pin<Box<dyn Future<Output = Result<models::User, String>> + Send + 'a>> {
+        fn login<'a>(
+            &'a self,
+            _username: &'a str,
+            _password: &'a str,
+        ) -> Pin<Box<dyn Future<Output = Result<models::User, String>> + Send + 'a>> {
             Box::pin(async { Err("not implemented".into()) })
         }
 
-        fn find_user_by_id<'a>(&'a self, id:u32) -> Pin<Box<dyn Future<Output = Result<models::User, ServiceError>> + Send + 'a>> {
+        fn find_user_by_id<'a>(
+            &'a self,
+            id: u32,
+        ) -> Pin<Box<dyn Future<Output = Result<models::User, ServiceError>> + Send + 'a>> {
             Box::pin(async move {
-                Ok(models::User { id, username: "u".into(), passwd: "p".into(), salt: "s".into(), created_at: None, updated_at: None })
+                Ok(models::User {
+                    id,
+                    username: "u".into(),
+                    passwd: "p".into(),
+                    salt: "s".into(),
+                    created_at: None,
+                    updated_at: None,
+                })
             })
         }
     }
 
     struct MockOrderService;
     impl OrderService for MockOrderService {
-        fn create_order_with_items<'a>(&'a self, _user_id: i32, _pay_amount: Option<f64>, _order_status: i8, _consignee_info: Option<serde_json::Value>, _items: Vec<(i32, String, i32, f64, Option<String>)>) -> Pin<Box<dyn Future<Output = Result<String, ServiceError>> + Send + 'a>> {
+        fn create_order_with_items<'a>(
+            &'a self,
+            _args: crate::service::orders::CreateOrderWithItemsArgs,
+        ) -> Pin<Box<dyn Future<Output = Result<String, ServiceError>> + Send + 'a>> {
             Box::pin(async { Ok("ORDERID".into()) })
         }
-        fn delete_order<'a>(&'a self, _order_id: &'a str) -> Pin<Box<dyn Future<Output = Result<(), ServiceError>> + Send + 'a>> {
+        fn delete_order<'a>(
+            &'a self,
+            _order_id: &'a str,
+        ) -> Pin<Box<dyn Future<Output = Result<(), ServiceError>> + Send + 'a>> {
             Box::pin(async { Ok(()) })
         }
-        fn update_order<'a>(&'a self, _order_id: &'a str, _pay_amount: Option<f64>, _order_status: Option<i8>, _consignee_info: Option<serde_json::Value>) -> Pin<Box<dyn Future<Output = Result<(), ServiceError>> + Send + 'a>> {
+        fn update_order<'a>(
+            &'a self,
+            _order_id: &'a str,
+            _pay_amount: Option<f64>,
+            _order_status: Option<i8>,
+            _consignee_info: Option<serde_json::Value>,
+        ) -> Pin<Box<dyn Future<Output = Result<(), ServiceError>> + Send + 'a>> {
             Box::pin(async { Ok(()) })
         }
-        fn get_order<'a>(&'a self, _order_id: &'a str) -> Pin<Box<dyn Future<Output = Result<models::Order, ServiceError>> + Send + 'a>> {
+        fn get_order<'a>(
+            &'a self,
+            _order_id: &'a str,
+        ) -> Pin<Box<dyn Future<Output = Result<models::Order, ServiceError>> + Send + 'a>>
+        {
             Box::pin(async { Err(ServiceError::NotFound("not found".into())) })
         }
-        fn get_order_items<'a>(&'a self, _order_id: &'a str) -> Pin<Box<dyn Future<Output = Result<Vec<models::OrderItem>, ServiceError>> + Send + 'a>> {
+        fn get_order_items<'a>(
+            &'a self,
+            _order_id: &'a str,
+        ) -> Pin<Box<dyn Future<Output = Result<Vec<models::OrderItem>, ServiceError>> + Send + 'a>>
+        {
             Box::pin(async { Ok(vec![]) })
         }
     }
 
     #[tokio::test]
     async fn test_get_user_by_id_handler() {
-        let app_state = AppState { user_service: Arc::new(MockService), order_service: Arc::new(MockOrderService) };
-        let resp = get_user_by_id_handler(State(app_state), Path(1)).await.unwrap();
+        let app_state = AppState {
+            user_service: Arc::new(MockService),
+            order_service: Arc::new(MockOrderService),
+        };
+        let resp = get_user_by_id_handler(State(app_state), Path(1))
+            .await
+            .unwrap();
         let v = resp.0;
         assert_eq!(v["code"], 0);
         assert_eq!(v["data"]["id"], 1);
@@ -127,7 +167,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_hash_handler() {
-        let payload = HashReq { passwd: "a".into(), salt: "b".into() };
+        let payload = HashReq {
+            passwd: "a".into(),
+            salt: "b".into(),
+        };
         let resp = hash_handler(Json(payload)).await;
         let v = resp.0;
         assert!(v["hash"].is_string());

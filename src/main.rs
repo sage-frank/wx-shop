@@ -12,8 +12,8 @@ use tower_http::trace::TraceLayer;
 
 use tower_sessions::cookie::time::Duration;
 
-use crate::service::users::{UserService, new_user_service};
 use crate::service::orders::{OrderService, new_order_service};
+use crate::service::users::{UserService, new_user_service};
 use axum::extract::FromRef;
 use std::sync::Arc;
 use tower_sessions::{Expiry, Session, SessionManagerLayer};
@@ -104,12 +104,15 @@ async fn main() {
     // user repository, user service
     let user_repo = repos::users::UserRepository::new(pool.clone()); // 注意：使用 pool.clone()
     let user_service = new_user_service(user_repo);
-    
+
     // order repository, user service
     let order_repo = repos::orders::OrderRepository::new(pool.clone());
     let order_service = new_order_service(order_repo);
-    
-    let app_state = AppState { user_service, order_service };
+
+    let app_state = AppState {
+        user_service,
+        order_service,
+    };
 
     // --- 4. 路由合并与依赖挂载 ---
     let app = Router::new()

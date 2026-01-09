@@ -1,7 +1,7 @@
-use axum::routing::{get, post};
-use axum::Router;
 use crate::AppState;
 use crate::handler::{index, users};
+use axum::Router;
+use axum::routing::{get, post};
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -9,4 +9,3 @@ pub fn routes() -> Router<AppState> {
         .route("/debug/hash", post(users::hash_handler))
         .route("/", get(index::index))
 }
-

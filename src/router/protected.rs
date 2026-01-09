@@ -1,9 +1,9 @@
-use axum::routing::{get, post, put, delete};
-use axum::Router;
 use crate::AppState;
-use crate::handler::users;
 use crate::handler::orders;
+use crate::handler::users;
 use crate::router::middleware;
+use axum::Router;
+use axum::routing::{delete, get, post, put};
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -12,6 +12,9 @@ pub fn routes() -> Router<AppState> {
         .route("/orders/{order_id}", delete(orders::delete_order_handler))
         .route("/orders/{order_id}", put(orders::update_order_handler))
         .route("/orders/{order_id}", get(orders::get_order_handler))
-        .route("/orders/{order_id}/items", get(orders::get_order_items_handler))
+        .route(
+            "/orders/{order_id}/items",
+            get(orders::get_order_items_handler),
+        )
         .route_layer(axum::middleware::from_fn(middleware::require_login))
 }
