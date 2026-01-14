@@ -3,7 +3,9 @@ use sqlx::mysql::MySqlPoolOptions;
 use sqlx::{MySql, Pool};
 use std::path::Path;
 use tower_sessions_redis_store::fred::{
-    clients::Pool as RedisPool, interfaces::ClientLike, prelude::Config,
+    clients::Pool as RedisPool,
+    interfaces::ClientLike,
+    prelude::Config,
 };
 
 /// 数据库配置结构
@@ -63,17 +65,22 @@ impl Settings {
     /// 根据配置创建 Redis 连接池
     pub async fn get_redis_pool(&self) -> Result<RedisPool, String> {
         let redis_config = Config::from_url(&self.redis.url).map_err(|e| e.to_string())?;
-        // 显式设置 Redis 版本为 RESP2，因为 tower-sessions-redis-store 可能默认使用 RESP3 导致不兼容
-        // redis_config.version = tower_sessions_redis_store::fred::types::RespVersion::RESP2;
+
         let pool = RedisPool::new(redis_config, None, None, None, self.redis.pool_size)
             .map_err(|e| e.to_string())?;
 
-        //pool.connect().await;
-        // tokio::spawn(pool.connect());
+        // 1. 启动后台驱动任务
+        let connection_task = tokio::spawn(pool.connect());
 
-        let _ = pool.connect().await.map_err(|e| e.to_string())?;
-
+        // 2. 等待首次连接成功
         pool.wait_for_connect().await.map_err(|e| e.to_string())?;
+
+        // 3. 检查任务是否启动即崩溃
+        if connection_task.is_finished() {
+            return Err("Redis connection task terminated prematurely".to_string());
+        }
+
+        // 4. 健康检查
         let _: String = pool
             .ping(Some("ping".to_string()))
             .await

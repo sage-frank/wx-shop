@@ -72,26 +72,34 @@ async fn main() {
         .init();
 
     // --- 2. 初始化数据库连接池 ---
-    let pool = match settings.get_database_pool().await {
-        Ok(p) => {
+    let pool = match tokio::time::timeout(std::time::Duration::from_secs(10), settings.get_database_pool()).await {
+        Ok(Ok(p)) => {
             tracing::info!("Database connection pool created successfully.");
             p
         }
-        Err(e) => {
+        Ok(Err(e)) => {
             tracing::error!("Failed to connect to database: {}", e);
+            return;
+        }
+        Err(e) => {
+            tracing::error!("Database connection error: {}", e);
             return;
         }
     };
 
     // --- 3. 依赖实例化与注入 (依赖倒置的入口) ---
     // Redis Session
-    let redis_pool = match settings.get_redis_pool().await {
-        Ok(pool) => {
+    let redis_pool = match tokio::time::timeout(std::time::Duration::from_secs(10), settings.get_redis_pool()).await {
+        Ok(Ok(pool)) => {
             tracing::info!("Redis connection pool created successfully.");
             pool
         }
-        Err(e) => {
+        Ok(Err(e)) => {
             tracing::error!("Failed to connect to redis: {}", e);
+            return;
+        }
+        Err(e) => {
+            tracing::error!("Redis connection timeout: {}", e);
             return;
         }
     };
@@ -153,7 +161,17 @@ async fn main() {
         .layer(session_layer);
 
     // --- 5. 启动服务 ---
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    tracing::info!("Listening on http://0.0.0.0:3000");
-    axum::serve(listener, app).await.unwrap();
+    let addr = "0.0.0.0:3000";
+    match tokio::net::TcpListener::bind(addr).await {
+        Ok(listener) => {
+            tracing::info!("Listening on http://{}", addr);
+            if let Err(e) = axum::serve(listener, app).await {
+                tracing::error!("Server error: {}", e);
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to bind {}: {}", addr, e);
+            return;
+        }
+    }
 }
