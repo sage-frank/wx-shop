@@ -74,12 +74,26 @@ pub async fn get_user_by_id_handler(
     })))
 }
 
+pub async fn logout_handler(
+    session: tower_sessions::Session,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    session.delete().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(serde_json::json!({
+        "code": 0,
+        "msg": "logout success"
+    })))
+}
+
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::models;
     use crate::service::orders::OrderService;
     use crate::service::users::UserService;
+    use crate::service::products::ProductService;
+    use crate::service::inventory::InventoryService;
     use std::future::Future;
     use std::pin::Pin;
     use std::sync::Arc;
@@ -149,6 +163,80 @@ mod tests {
         {
             Box::pin(async { Ok(vec![]) })
         }
+        fn cancel_order<'a>(
+            &'a self,
+            _order_id: &'a str,
+        ) -> Pin<Box<dyn Future<Output = Result<(), ServiceError>> + Send + 'a>> {
+            Box::pin(async { Ok(()) })
+        }
+    }
+
+    struct MockProductService;
+    impl ProductService for MockProductService {
+        fn create_product<'a>(
+            &'a self,
+            _params: crate::domain::products::CreateProductParams,
+        ) -> Pin<Box<dyn Future<Output = Result<i32, ServiceError>> + Send + 'a>> {
+            Box::pin(async { Ok(1) })
+        }
+
+        fn update_product<'a>(
+            &'a self,
+            _product_id: i32,
+            _params: crate::domain::products::UpdateProductParams,
+        ) -> Pin<Box<dyn Future<Output = Result<(), ServiceError>> + Send + 'a>> {
+            Box::pin(async { Ok(()) })
+        }
+
+        fn get_product<'a>(
+            &'a self,
+            _product_id: i32,
+        ) -> Pin<Box<dyn Future<Output = Result<models::Product, ServiceError>> + Send + 'a>> {
+            Box::pin(async { Err(ServiceError::NotFound("not found".into())) })
+        }
+
+        fn list_products<'a>(
+            &'a self,
+            _page: u32,
+            _page_size: u32,
+        ) -> Pin<Box<dyn Future<Output = Result<(Vec<models::Product>, u64), ServiceError>> + Send + 'a>> {
+            Box::pin(async { Ok((vec![], 0)) })
+        }
+
+        fn upload_image<'a>(
+            &'a self,
+            _file_name: String,
+            _file_data: Vec<u8>,
+            _content_type: String,
+        ) -> Pin<Box<dyn Future<Output = Result<String, ServiceError>> + Send + 'a>> {
+            Box::pin(async { Ok("img.jpg".into()) })
+        }
+    }
+
+    struct MockInventoryService;
+    impl InventoryService for MockInventoryService {
+        fn list_inventory<'a>(
+            &'a self,
+            _page: u32,
+            _page_size: u32,
+        ) -> Pin<Box<dyn Future<Output = Result<(Vec<models::Inventory>, u64), ServiceError>> + Send + 'a>> {
+            Box::pin(async { Ok((vec![], 0)) })
+        }
+
+        fn update_inventory<'a>(
+            &'a self,
+            _inv_id: i32,
+            _params: crate::domain::inventory::UpdateInventoryParams,
+        ) -> Pin<Box<dyn Future<Output = Result<(), ServiceError>> + Send + 'a>> {
+            Box::pin(async { Ok(()) })
+        }
+
+        fn get_inventory<'a>(
+            &'a self,
+            _inv_id: i32,
+        ) -> Pin<Box<dyn Future<Output = Result<models::Inventory, ServiceError>> + Send + 'a>> {
+            Box::pin(async { Err(ServiceError::NotFound("not found".into())) })
+        }
     }
 
     #[tokio::test]
@@ -156,6 +244,8 @@ mod tests {
         let app_state = AppState {
             user_service: Arc::new(MockService),
             order_service: Arc::new(MockOrderService),
+            product_service: Arc::new(MockProductService),
+            inventory_service: Arc::new(MockInventoryService),
         };
         let resp = get_user_by_id_handler(State(app_state), Path(1))
             .await

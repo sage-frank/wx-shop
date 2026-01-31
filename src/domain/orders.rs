@@ -44,6 +44,11 @@ pub trait OrderRepo: Send + Sync {
         &'a self,
         order_id: &'a str,
     ) -> Pin<Box<dyn Future<Output = Result<Vec<models::OrderItem>, sqlx::Error>> + Send + 'a>>;
+
+    fn cancel_order_blocking<'a>(
+        &'a self,
+        order_id: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<(), sqlx::Error>> + Send + 'a>>;
 }
 
 impl Clone for Box<dyn OrderRepo> {

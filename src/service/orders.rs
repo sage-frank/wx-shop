@@ -53,6 +53,11 @@ pub trait OrderService: Send + Sync {
         &'a self,
         order_id: &'a str,
     ) -> Pin<Box<dyn Future<Output = Result<Vec<models::OrderItem>, ServiceError>> + Send + 'a>>;
+
+    fn cancel_order<'a>(
+        &'a self,
+        order_id: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<(), ServiceError>> + Send + 'a>>;
 }
 
 impl<R: OrderRepo + 'static> OrderService for OrderServiceImpl<R> {
@@ -148,6 +153,18 @@ impl<R: OrderRepo + 'static> OrderService for OrderServiceImpl<R> {
                 .await
                 .map_err(ServiceError::from)?;
             Ok(items)
+        })
+    }
+
+    fn cancel_order<'a>(
+        &'a self,
+        order_id: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<(), ServiceError>> + Send + 'a>> {
+        Box::pin(async move {
+            self.repo
+                .cancel_order_blocking(order_id)
+                .await
+                .map_err(ServiceError::from)
         })
     }
 }

@@ -29,6 +29,8 @@ pub struct UpdateOrderReq {
     pub consignee_info: Option<Value>,
 }
 
+
+
 pub async fn create_order_handler(
     State(app_state): State<AppState>,
     Json(payload): Json<CreateOrderReq>,
@@ -114,3 +116,15 @@ pub async fn get_order_items_handler(
         serde_json::json!({"code":0,"msg":"success","data":items}),
     ))
 }
+
+pub async fn cancel_order_handler(
+    State(app_state): State<AppState>,
+    Path(order_id): Path<String>,
+) -> Result<Json<serde_json::Value>, ServiceError> {
+    match app_state.order_service.cancel_order(&order_id).await {
+        Ok(_) => Ok(Json(serde_json::json!({"code":0,"msg":"success"}))),
+        Err(e) => Err(e),
+    }
+}
+
+

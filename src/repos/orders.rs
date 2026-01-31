@@ -175,6 +175,70 @@ impl OrderRepository {
             .fetch_all(&self.pool)
             .await
     }
+
+    async fn cancel_order_internal(&self, order_id: &str) -> Result<(), sqlx::Error> {
+        let mut tx = self.pool.begin().await?;
+
+        // 1. 获取订单项，用于恢复库存
+        let items: Vec<(i32, i32)> = sqlx::query_as(
+            r#"SELECT product_id, quantity FROM wx_order_items WHERE order_id = ? AND is_deleted = 0"#,
+        )
+        .bind(order_id)
+        .fetch_all(&mut *tx)
+        .await?;
+
+        // 2. 更新订单状态为已取消 (order_status = 4, 假设 4 代表已取消)
+        // 只有待付款(0)和待发货(1)的订单可以取消
+        let result = sqlx::query(
+            r#"UPDATE wx_orders SET order_status = 4 WHERE order_id = ? AND order_status IN (0, 1)"#,
+        )
+        .bind(order_id)
+        .execute(&mut *tx)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            // 订单不存在或状态不符合取消条件
+            return Err(sqlx::Error::RowNotFound);
+        }
+
+        // 3. 恢复库存
+        for (product_id, quantity) in items {
+            // 恢复可用库存，减少冻结库存（如果是下单减库存模式）
+            // 这里假设是下单锁库存，所以取消订单需要释放冻结库存并加回可用库存
+            // 注意：具体逻辑取决于库存扣减策略，这里假设是预占库存模式
+            sqlx::query(
+                r#"UPDATE wx_inventory
+                   SET available_quantity = available_quantity + ?,
+                       frozen_quantity = frozen_quantity - ?,
+                       version = version + 1
+                   WHERE sku_id = ? AND warehouse_id = 1"#,
+            )
+            .bind(quantity)
+            .bind(quantity)
+            .bind(product_id)
+            .execute(&mut *tx)
+            .await?;
+
+            // 记录库存变动日志
+            sqlx::query(
+                r#"INSERT INTO wx_inventory_log
+                   (sku_id, change_type, change_quantity, available_quantity_after, frozen_quantity_after, related_order_id, operator, remark)
+                   SELECT sku_id, 3, ?, available_quantity, frozen_quantity, ?, ?, ?
+                   FROM wx_inventory
+                   WHERE sku_id = ? AND warehouse_id = 1"#,
+            )
+            .bind(quantity)
+            .bind(order_id)
+            .bind("system")
+            .bind("order cancel release")
+            .bind(product_id)
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(())
+    }
 }
 
 impl OrderRepo for OrderRepository {
@@ -239,5 +303,13 @@ impl OrderRepo for OrderRepository {
         >,
     > {
         Box::pin(self.get_order_items_internal(order_id))
+    }
+
+    fn cancel_order_blocking<'a>(
+        &'a self,
+        order_id: &'a str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), sqlx::Error>> + Send + 'a>>
+    {
+        Box::pin(self.cancel_order_internal(order_id))
     }
 }

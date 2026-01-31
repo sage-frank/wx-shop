@@ -35,6 +35,7 @@ impl<R: UserRepo + 'static> UserService for UserServiceImpl<R> {
         username: &'a str,
         password: &'a str,
     ) -> Pin<Box<dyn Future<Output = Result<models::User, String>> + Send + 'a>> {
+        
         Box::pin(async move {
             let user = self
                 .repo

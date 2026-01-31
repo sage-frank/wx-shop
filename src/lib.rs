@@ -28,6 +28,24 @@ pub struct LogSettings {
     pub dir: String,
     pub file: String,
     pub level: String,
+    pub max_history: usize,
+}
+
+/// 服务配置结构
+#[derive(Debug, Deserialize, Clone)]
+pub struct ServerSettings {
+    pub port: u16,
+    pub host: String,
+}
+
+/// S3 配置结构
+#[derive(Debug, Deserialize, Clone)]
+pub struct S3Settings {
+    pub endpoint: String,
+    pub bucket: String,
+    pub access_key: String,
+    pub secret_key: String,
+    pub region: String,
 }
 
 /// 顶级配置结构
@@ -36,6 +54,8 @@ pub struct Settings {
     pub database: DatabaseSettings,
     pub redis: RedisSettings,
     pub log: LogSettings,
+    pub server: ServerSettings,
+    pub s3: S3Settings,
 }
 
 impl Settings {
@@ -56,6 +76,7 @@ impl Settings {
 
     /// 根据配置创建 sqlx 数据库连接池
     pub async fn get_database_pool(&self) -> Result<Pool<MySql>, sqlx::Error> {
+
         MySqlPoolOptions::new()
             .max_connections(self.database.max_connections)
             .connect(&self.database.database_url)
@@ -85,7 +106,29 @@ impl Settings {
             .ping(Some("ping".to_string()))
             .await
             .map_err(|e| format!("Redis pool PING failed: {}", e))?;
+
         Ok(pool)
+    }
+
+    /// 根据配置创建 S3 客户端
+    pub fn get_s3_client(&self) -> aws_sdk_s3::Client {
+        let creds = aws_sdk_s3::config::Credentials::new(
+            &self.s3.access_key,
+            &self.s3.secret_key,
+            None,
+            None,
+            "static",
+        );
+        
+        let config = aws_sdk_s3::Config::builder()
+            .behavior_version_latest()
+            .region(aws_sdk_s3::config::Region::new(self.s3.region.clone()))
+            .endpoint_url(&self.s3.endpoint)
+            .credentials_provider(creds)
+            .force_path_style(true) // MinIO 通常需要 path style
+            .build();
+
+        aws_sdk_s3::Client::from_conf(config)
     }
 }
 

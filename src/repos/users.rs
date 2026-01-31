@@ -13,7 +13,6 @@ impl UserRepository {
     pub fn new(pool: Pool<MySql>) -> Arc<Self> {
         Arc::new(Self { pool })
     }
-
     pub async fn find_by_username(
         &self,
         username: &str,

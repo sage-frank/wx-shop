@@ -1,20 +1,34 @@
 use crate::AppState;
 use crate::handler::orders;
 use crate::handler::users;
+use crate::handler::products;
+use crate::handler::inventory;
 use crate::router::middleware;
 use axum::Router;
 use axum::routing::{delete, get, post, put};
 
 pub fn routes() -> Router<AppState> {
     Router::new()
+        .route("/logout", post(users::logout_handler))
         .route("/user/{id}", get(users::get_user_by_id_handler))
         .route("/orders", post(orders::create_order_handler))
         .route("/orders/{order_id}", delete(orders::delete_order_handler))
         .route("/orders/{order_id}", put(orders::update_order_handler))
+        .route("/orders/{order_id}/cancel", post(orders::cancel_order_handler))
         .route("/orders/{order_id}", get(orders::get_order_handler))
         .route(
             "/orders/{order_id}/items",
             get(orders::get_order_items_handler),
         )
+        .route("/products", get(products::list_products_handler))
+        .route("/products", post(products::create_product_handler))
+        .route("/products/{product_id}", put(products::update_product_handler))
+        .route(
+            "/products/{product_id}/off-shelf",
+            post(products::off_shelf_product_handler),
+        )
+        .route("/products/upload", post(products::upload_image_handler))
+        .route("/inventory", get(inventory::list_inventory_handler))
+        .route("/inventory/{inv_id}", put(inventory::update_inventory_handler).get(inventory::get_inventory_handler))
         .route_layer(axum::middleware::from_fn(middleware::require_login))
 }
