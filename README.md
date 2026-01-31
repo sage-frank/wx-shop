@@ -1,80 +1,146 @@
 # wx-shop
 
-本项目是一个基于 Rust 编写的后端应用程序，采用了分层架构（Controller-Service-Repository）。项目使用 **Axum** Web 框架以及 **SQLx** 进行数据库交互（MySQL）。
+wx-shop 是一个高性能、基于 Rust 编写的电商后端服务，旨在提供安全、可靠且易于扩展的 API 接口。项目采用典型的分层架构（Handler-Service-Repository），结合 **Axum** Web 框架、**SQLx** 异步数据库操作以及 **Redis** 会话管理，适用于构建高并发的电商应用。
 
-## 🚀 技术栈
+## 🚀 核心特性
 
-- **编程语言:** [Rust](https://www.rust-lang.org/) (2024 Edition)
-- **Web 框架:** [Axum](https://github.com/tokio-rs/axum)
-- **异步运行时:** [Tokio](https://tokio.rs/)
-- **数据库 ORM:** [SQLx](https://github.com/launchbadge/sqlx) (MySQL)
-- **配置管理:** [Config](https://github.com/mehcode/config-rs)
-- **日志/追踪:** [Tracing](https://github.com/tokio-rs/tracing)
+- **用户系统**: 支持用户注册、登录（加盐哈希）、退出登录，基于 Redis 的分布式 Session 管理。
+- **商品管理**:
+  - 商品 CRUD 操作（列表分页、添加、编辑、下架）。
+  - **图片存储**: 集成 AWS S3 / MinIO 对象存储，支持图片上传及访问链接生成（Presigned URL）。
+- **库存管理**:
+  - 实时库存查询。
+  - **乐观锁机制**: 防止高并发场景下的超卖问题。
+  - 低库存预警阈值支持。
+- **订单系统**:
+  - 订单创建、查询、更新、删除。
+  - **取消订单**: 支持原子性操作，取消订单自动释放冻结库存。
+  - 事务支持：确保订单状态流转与库存扣减的数据一致性。
+- **架构设计**:
+  - 清晰的分层架构：Handler (控制器) -> Service (业务逻辑) -> Repository (数据访问) -> Model (领域模型)。
+  - 依赖注入 (DI)：便于测试与模块解耦。
+  - 统一错误处理与结构化日志 (Tracing)。
+
+## �️ 技术栈
+
+- **编程语言**: [Rust](https://www.rust-lang.org/) (2024 Edition)
+- **Web 框架**: [Axum](https://github.com/tokio-rs/axum)
+- **数据库 ORM**: [SQLx](https://github.com/launchbadge/sqlx) (MySQL)
+- **缓存/会话**: [Redis](https://redis.io/) (via `tower-sessions`, `fred`)
+- **对象存储**: [AWS SDK for Rust](https://github.com/awslabs/aws-sdk-rust) (S3 / MinIO)
+- **配置管理**: [Config](https://github.com/mehcode/config-rs)
+- **日志追踪**: [Tracing](https://github.com/tokio-rs/tracing) + Tracing Appender
+- **序列化**: [Serde](https://serde.rs/) (JSON)
 
 ## 📂 项目结构
 
-项目源代码 (`src/`) 组织结构如下：
-
 ```
 src/
-├── handler/    # 请求处理器 (Controllers) - 处理 HTTP 请求和响应
-├── models/     # 数据模型 - 代表数据库实体的结构体
-├── repos/      # 仓储层 (Repositories) - 数据访问层 (数据库操作)
-├── service/    # 服务层 (Services) - 业务逻辑层
-├── router/     # 路由 - 路由定义与合并
-├── lib.rs      # 库入口 - 配置加载，数据库连接池设置
-└── main.rs     # 应用入口 - 依赖注入和服务启动
+├── domain/     # 领域层 - 定义 Trait 接口与参数结构 (DTO)
+├── handler/    # 接口层 - 处理 HTTP 请求/响应，参数校验
+├── models/     # 模型层 - 数据库实体映射 (ORM)
+├── repos/      # 仓储层 - 具体的数据库/中间件交互实现
+├── service/    # 服务层 - 核心业务逻辑，事务控制
+├── router/     # 路由层 - 路由注册与中间件配置
+├── lib.rs      # 库入口 - 配置定义、通用工具
+└── main.rs     # 应用入口 - 依赖注入、服务启动
 ```
 
-### 关键组件
+## ⚙️ 配置说明
 
-- **Main (`main.rs`)**: 初始化应用，加载配置，设置数据库连接池，装配依赖 (Repo -> Service -> Handler)，并启动 Axum 服务器。
-- **Lib (`lib.rs`)**: 定义配置结构 (`Settings`) 和初始化数据库连接池的辅助函数。
-- **Router (`router/mod.rs`)**: 定义 API 路由并将它们映射到处理器。
+项目根目录下需要 `Settings.toml` 文件。
 
-## ⚙️ 配置
+**Settings.toml 示例**:
 
-应用使用 `Settings.toml` 文件进行配置。
-
-`Settings.toml` 示例：
 ```toml
+[server]
+host = "0.0.0.0"
+port = 3000
+
 [database]
-database_url = "mysql://user:password@localhost:3306/dbname"
-max_connections = 5
+# MySQL 连接地址
+database_url = "mysql://user:password@localhost:3306/wx_shop"
+max_connections = 10
+
+[redis]
+# Redis 连接地址
+url = "redis://localhost:6379"
+pool_size = 10
+
+[log]
+dir = "./logs"
+file = "app.log"
+level = "info"
+max_history = 3
+
+[s3]
+# 对象存储配置 (兼容 AWS S3 或 MinIO)
+endpoint = "http://127.0.0.1:9000"
+bucket = "wx-shop-assets"
+access_key = "your-access-key"
+secret_key = "your-secret-key"
+region = "us-east-1"
 ```
 
-## 🛠️ 安装与运行
+## 🚀 快速开始
 
 ### 前置要求
 
-- [Rust](https://www.rust-lang.org/tools/install)
-- MySQL 数据库
+- Rust (Latest Stable)
+- MySQL 8.0+
+- Redis 6.0+
+- MinIO (或其他 S3 兼容存储)
 
-### 安装步骤
+### 数据库初始化
 
-1.  克隆仓库。
-2.  确保根目录下有一个有效的 `Settings.toml` 文件，并包含正确的数据库凭据。
-3.  安装依赖：
+请执行提供的 SQL 脚本以初始化数据库表结构（`wx_users`, `wx_products`, `wx_orders`, `wx_inventory` 等）。
 
+### 运行项目
+
+1.  **克隆仓库**:
     ```bash
-    cargo build
+    git clone https://github.com/your-username/wx-shop.git
+    cd wx-shop
     ```
 
-### 运行应用
+2.  **配置文件**:
+    复制并修改配置文件（如上所示）。
 
-```bash
-cargo run
-```
+3.  **运行**:
+    ```bash
+    cargo run
+    ```
 
-服务器将在 `http://0.0.0.0:3000` 启动。
+服务启动后默认监听: `http://0.0.0.0:3000`
 
-## 🔌 API 接口
+## 🔌 API 接口概览
 
-| 方法   | 端点          | 描述                  |
-| :----- | :------------ | :-------------------- |
-| GET    | `/`           | 首页 / 健康检查       |
-| GET    | `/users/{id}` | 根据 ID 获取用户      |
+### 用户 (User)
+- `POST /login` - 用户登录
+- `POST /logout` - 退出登录
+- `GET /user/{id}` - 获取用户信息
 
-## 📝 许可证
+### 商品 (Product)
+- `GET /products` - 获取商品列表 (分页)
+- `POST /products` - 创建商品
+- `POST /products/upload` - 上传商品图片
+- `PUT /products/{id}` - 更新商品信息
+- `POST /products/{id}/off-shelf` - 商品下架
 
-[在此处添加许可证信息]
+### 库存 (Inventory)
+- `GET /inventory` - 获取库存列表 (分页)
+- `PUT /inventory/{id}` - 更新库存 (需携带 version 版本号)
+
+### 订单 (Order)
+- `POST /orders` - 创建订单
+- `GET /orders/{id}` - 获取订单详情
+- `PUT /orders/{id}` - 更新订单
+- `POST /orders/{id}/cancel` - 取消订单
+- `DELETE /orders/{id}` - 删除订单
+- `GET /orders/{id}/items` - 获取订单项
+
+## 📝 开发规范
+
+- **代码风格**: 遵循 Rust 标准格式 (`cargo fmt`)。
+- **提交规范**: 使用 Conventional Commits (e.g., `feat:`, `fix:`, `docs:`).
+- **分层原则**: Handler 仅处理 HTTP 协议转换；Service 处理业务；Repository 仅处理数据存取。
