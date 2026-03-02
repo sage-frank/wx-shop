@@ -1,6 +1,7 @@
-use crate::domain::orders::{CreateOrderWithItemsParams, OrderRepo};
+use crate::models::dto::params::CreateOrderWithItemsParams;
+use crate::repository::traits::OrderRepo;
 use crate::models;
-use crate::service::ServiceError;
+use crate::services::ServiceError;
 use serde_json::Value;
 use std::future::Future;
 use std::pin::Pin;

@@ -1,7 +1,7 @@
-use crate::domain::users::UserRepo;
+use crate::repository::traits::UserRepo;
 use crate::models;
 use crate::repository::users::UserRepository;
-use crate::service::ServiceError;
+use crate::services::ServiceError;
 use sha2::{Digest, Sha256};
 use std::future::Future;
 use std::pin::Pin;

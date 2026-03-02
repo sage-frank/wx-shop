@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::service::ServiceError;
+use crate::services::ServiceError;
 use axum::{Json, extract::Path, extract::State};
 use serde::Deserialize;
 use serde_json::Value;
@@ -29,8 +29,6 @@ pub struct UpdateOrderReq {
     pub consignee_info: Option<Value>,
 }
 
-
-
 pub async fn create_order_handler(
     State(app_state): State<AppState>,
     Json(payload): Json<CreateOrderReq>,
@@ -51,7 +49,7 @@ pub async fn create_order_handler(
     let status = payload.order_status.unwrap_or(0);
     match app_state
         .order_service
-        .create_order_with_items(crate::service::orders::CreateOrderWithItemsArgs {
+        .create_order_with_items(crate::services::orders::CreateOrderWithItemsArgs {
             user_id: payload.user_id,
             pay_amount: payload.pay_amount,
             order_status: status,
@@ -126,5 +124,3 @@ pub async fn cancel_order_handler(
         Err(e) => Err(e),
     }
 }
-
-

@@ -1,4 +1,5 @@
-use crate::domain::orders::{CreateOrderWithItemsParams, OrderRepo};
+use crate::models::dto::params::CreateOrderWithItemsParams;
+use crate::repository::traits::OrderRepo;
 use crate::models;
 use serde_json::Value;
 use sqlx::{MySql, Pool, QueryBuilder};

@@ -1,4 +1,4 @@
-use crate::domain::users::UserRepo;
+use crate::repository::traits::UserRepo;
 use crate::models;
 use sqlx::{MySql, Pool};
 use std::future::Future;

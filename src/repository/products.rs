@@ -1,4 +1,5 @@
-use crate::domain::products::{CreateProductParams, ProductRepo, UpdateProductParams};
+use crate::models::dto::params::{CreateProductParams, UpdateProductParams};
+use crate::repository::traits::ProductRepo;
 use crate::models;
 use sqlx::{MySql, Pool};
 use std::sync::Arc;

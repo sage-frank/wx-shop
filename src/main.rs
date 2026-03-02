@@ -1,9 +1,8 @@
-mod domain;
-mod handler;
+mod handlers;
 mod models;
 mod repository;
-mod router;
-mod service;
+mod routes;
+mod services;
 
 use axum::{extract::FromRef, Router, body::Body};
 use clap::Parser;
@@ -16,10 +15,10 @@ use tower_sessions_redis_store::{fred::clients::Pool as RedisPool, RedisStore};
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
 
-use crate::service::orders::{new_order_service, OrderService};
-use crate::service::users::{new_user_service, UserService};
-use crate::service::products::{new_product_service, ProductService};
-use crate::service::inventory::{new_inventory_service, InventoryService};
+use crate::services::orders::{new_order_service, OrderService};
+use crate::services::users::{new_user_service, UserService};
+use crate::services::products::{new_product_service, ProductService};
+use crate::services::inventory::{new_inventory_service, InventoryService};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -89,10 +88,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_expiry(Expiry::OnInactivity(Duration::seconds(3600)));
 
     let app = Router::new()
-        .merge(router::routes())
+        .merge(routes::routes())
         .with_state(app_state)
         .layer(axum::middleware::from_fn(
-            router::middleware::print_request_body,
+            routes::middleware::print_request_body,
         ))
         .layer(build_trace_layer())
         .layer(session_layer);

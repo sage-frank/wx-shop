@@ -1,6 +1,5 @@
-// use crate::service::users::UserService;
 use crate::AppState;
-use crate::service::ServiceError;
+use crate::services::ServiceError;
 use axum::extract::Path;
 use axum::{Json, extract::State, http::StatusCode};
 use serde::Deserialize;
@@ -84,16 +83,14 @@ pub async fn logout_handler(
     })))
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::models;
-    use crate::service::orders::OrderService;
-    use crate::service::users::UserService;
-    use crate::service::products::ProductService;
-    use crate::service::inventory::InventoryService;
+    use crate::services::orders::OrderService;
+    use crate::services::users::UserService;
+    use crate::services::products::ProductService;
+    use crate::services::inventory::InventoryService;
     use std::future::Future;
     use std::pin::Pin;
     use std::sync::Arc;
@@ -130,7 +127,7 @@ mod tests {
     impl OrderService for MockOrderService {
         fn create_order_with_items<'a>(
             &'a self,
-            _args: crate::service::orders::CreateOrderWithItemsArgs,
+            _args: crate::services::orders::CreateOrderWithItemsArgs,
         ) -> Pin<Box<dyn Future<Output = Result<String, ServiceError>> + Send + 'a>> {
             Box::pin(async { Ok("ORDERID".into()) })
         }
@@ -175,7 +172,7 @@ mod tests {
     impl ProductService for MockProductService {
         fn create_product<'a>(
             &'a self,
-            _params: crate::domain::products::CreateProductParams,
+            _params: crate::models::dto::params::CreateProductParams,
         ) -> Pin<Box<dyn Future<Output = Result<i32, ServiceError>> + Send + 'a>> {
             Box::pin(async { Ok(1) })
         }
@@ -183,7 +180,7 @@ mod tests {
         fn update_product<'a>(
             &'a self,
             _product_id: i32,
-            _params: crate::domain::products::UpdateProductParams,
+            _params: crate::models::dto::params::UpdateProductParams,
         ) -> Pin<Box<dyn Future<Output = Result<(), ServiceError>> + Send + 'a>> {
             Box::pin(async { Ok(()) })
         }
@@ -226,7 +223,7 @@ mod tests {
         fn update_inventory<'a>(
             &'a self,
             _inv_id: i32,
-            _params: crate::domain::inventory::UpdateInventoryParams,
+            _params: crate::models::dto::params::UpdateInventoryParams,
         ) -> Pin<Box<dyn Future<Output = Result<(), ServiceError>> + Send + 'a>> {
             Box::pin(async { Ok(()) })
         }

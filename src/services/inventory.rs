@@ -1,6 +1,7 @@
-use crate::domain::inventory::{InventoryRepo, UpdateInventoryParams};
+use crate::repository::traits::InventoryRepo;
+use crate::models::dto::params::UpdateInventoryParams;
 use crate::models::Inventory;
-use crate::service::ServiceError;
+use crate::services::ServiceError;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -54,10 +55,6 @@ impl<R: InventoryRepo> InventoryService for InventoryServiceImpl<R> {
         params: UpdateInventoryParams,
     ) -> Pin<Box<dyn Future<Output = Result<(), ServiceError>> + Send + 'a>> {
         Box::pin(async move {
-            // Check existence first if we want to distinguish not found vs conflict, 
-            // but repo handles optimistic lock by returning RowNotFound (mapped to Database error)
-            // or we can handle it here.
-            // For now simple pass through.
             self.repo
                 .update_inventory_blocking(inv_id, params)
                 .await

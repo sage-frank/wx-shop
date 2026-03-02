@@ -1,9 +1,9 @@
 use crate::AppState;
-use crate::handler::orders;
-use crate::handler::users;
-use crate::handler::products;
-use crate::handler::inventory;
-use crate::router::middleware;
+use crate::handlers::orders;
+use crate::handlers::users;
+use crate::handlers::products;
+use crate::handlers::inventory;
+use crate::routes::middleware;
 use axum::Router;
 use axum::routing::{delete, get, post, put};
 

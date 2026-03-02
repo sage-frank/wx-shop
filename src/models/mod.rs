@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use sqlx::types::BigDecimal;
 
+pub mod dto;
+
 #[derive(FromRow, Debug, Clone, Serialize, Deserialize)]
 pub struct User {
     pub id: u32,

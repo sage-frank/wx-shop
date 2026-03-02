@@ -1,6 +1,7 @@
-use crate::domain::products::{CreateProductParams, ProductRepo, UpdateProductParams};
+use crate::models::dto::params::{CreateProductParams, UpdateProductParams};
+use crate::repository::traits::ProductRepo;
 use crate::models;
-use crate::service::ServiceError;
+use crate::services::ServiceError;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;

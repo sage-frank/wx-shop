@@ -1,4 +1,5 @@
-use crate::domain::inventory::{InventoryRepo, UpdateInventoryParams};
+use crate::repository::traits::InventoryRepo;
+use crate::models::dto::params::UpdateInventoryParams;
 use crate::models::Inventory;
 use sqlx::{MySql, Pool};
 use std::sync::Arc;
