@@ -1,6 +1,6 @@
 # wx-shop
 
-wx-shop 是一个高性能、基于 Rust 编写的电商后端服务，旨在提供安全、可靠且易于扩展的 API 接口。项目采用典型的分层架构（Handler-Service-Repository），结合 **Axum** Web 框架、**SQLx** 异步数据库操作以及 **Redis** 会话管理，适用于构建高并发的电商应用。
+wx-shop 是一个高性能、基于 Rust 编写的电商后端服务，旨在提供安全、可靠且易于扩展的 API 接口。项目采用典型的分层架构（Handlers-Services-Repository），结合 **Axum** Web 框架、**SQLx** 异步数据库操作以及 **Redis** 会话管理，适用于构建高并发的电商应用。
 
 ## 🚀 核心特性
 
@@ -17,11 +17,11 @@ wx-shop 是一个高性能、基于 Rust 编写的电商后端服务，旨在提
   - **取消订单**: 支持原子性操作，取消订单自动释放冻结库存。
   - 事务支持：确保订单状态流转与库存扣减的数据一致性。
 - **架构设计**:
-  - 清晰的分层架构：Handler (控制器) -> Service (业务逻辑) -> Repository (数据访问) -> Model (领域模型)。
-  - 依赖注入 (DI)：便于测试与模块解耦。
+  - 清晰的分层架构：Handlers (接口层) -> Services (业务逻辑) -> Repository (数据访问) -> Models (领域模型)。
+  - **整合设计**: 移除了冗余的 domain 层，将业务参数整合至 `models/dto`，将接口契约整合至 `repository/traits`。
   - 统一错误处理与结构化日志 (Tracing)。
 
-## �️ 技术栈
+## 🛠️ 技术栈
 
 - **编程语言**: [Rust](https://www.rust-lang.org/) (2024 Edition)
 - **Web 框架**: [Axum](https://github.com/tokio-rs/axum)
@@ -36,14 +36,17 @@ wx-shop 是一个高性能、基于 Rust 编写的电商后端服务，旨在提
 
 ```
 src/
-├── domain/     # 领域层 - 定义 Trait 接口与参数结构 (DTO)
-├── handler/    # 接口层 - 处理 HTTP 请求/响应，参数校验
-├── models/     # 模型层 - 数据库实体映射 (ORM)
-├── repos/      # 仓储层 - 具体的数据库/中间件交互实现
-├── service/    # 服务层 - 核心业务逻辑，事务控制
-├── router/     # 路由层 - 路由注册与中间件配置
-├── lib.rs      # 库入口 - 配置定义、通用工具
-└── main.rs     # 应用入口 - 依赖注入、服务启动
+├── handlers/    # 接口层 - 处理 HTTP 请求/响应，参数校验 (控制器)
+├── services/    # 服务层 - 核心业务逻辑，事务控制
+├── repository/  # 仓储层 - 数据库/中间件交互实现，含 traits 定义
+├── models/      # 模型层 - 包含 entities (数据库映射) 与 dto (传输对象)
+│   ├── dto/     # 输入输出模型 (Request/Response params)
+│   └── mod.rs   # 数据库实体映射定义
+├── routes/      # 路由层 - 路由注册与中间件配置
+├── config.rs    # 配置入口 - 环境/配置文件读取
+├── error.rs     # 错误定义 - 全局 AppError 类型
+├── lib.rs       # 库入口 - 导出 Settings 与常用工具
+└── main.rs      # 应用入口 - 初始化配置、数据库并启动服务
 ```
 
 ## ⚙️ 配置说明
@@ -143,4 +146,4 @@ region = "us-east-1"
 
 - **代码风格**: 遵循 Rust 标准格式 (`cargo fmt`)。
 - **提交规范**: 使用 Conventional Commits (e.g., `feat:`, `fix:`, `docs:`).
-- **分层原则**: Handler 仅处理 HTTP 协议转换；Service 处理业务；Repository 仅处理数据存取。
+- **分层原则**: Handlers 仅处理 HTTP 协议转换；Services 处理业务；Repository 仅处理数据存取。
