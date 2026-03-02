@@ -170,7 +170,7 @@ impl<R: OrderRepo + 'static> OrderService for OrderServiceImpl<R> {
 }
 
 pub fn new_order_service(
-    repo: Arc<crate::repos::orders::OrderRepository>,
+    repo: Arc<crate::repository::orders::OrderRepository>,
 ) -> Arc<dyn OrderService> {
     Arc::new(OrderServiceImpl::new(repo)) as Arc<dyn OrderService>
 }

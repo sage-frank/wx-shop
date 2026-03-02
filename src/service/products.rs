@@ -161,7 +161,7 @@ impl<R: ProductRepo> ProductService for ProductServiceImpl<R> {
 }
 
 pub fn new_product_service(
-    repo: Arc<crate::repos::products::ProductRepository>,
+    repo: Arc<crate::repository::products::ProductRepository>,
     s3_client: aws_sdk_s3::Client,
     s3_bucket: String,
 ) -> Arc<dyn ProductService> {

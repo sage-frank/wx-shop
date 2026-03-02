@@ -1,6 +1,6 @@
 use crate::domain::users::UserRepo;
 use crate::models;
-use crate::repos::users::UserRepository;
+use crate::repository::users::UserRepository;
 use crate::service::ServiceError;
 use sha2::{Digest, Sha256};
 use std::future::Future;

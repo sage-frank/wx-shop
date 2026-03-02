@@ -1,7 +1,7 @@
 mod domain;
 mod handler;
 mod models;
-mod repos;
+mod repository;
 mod router;
 mod service;
 
@@ -58,13 +58,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let redis_pool = init_redis_pool(&settings).await?;
 
     // 4. 依赖注入
-    let user_repo = repos::users::UserRepository::new(pool.clone());
+    let user_repo = repository::users::UserRepository::new(pool.clone());
     let user_service = new_user_service(user_repo);
 
-    let order_repo = repos::orders::OrderRepository::new(pool.clone());
+    let order_repo = repository::orders::OrderRepository::new(pool.clone());
     let order_service = new_order_service(order_repo);
 
-    let product_repo = repos::products::ProductRepository::new(pool.clone());
+    let product_repo = repository::products::ProductRepository::new(pool.clone());
     let s3_client = settings.get_s3_client();
     let product_service = new_product_service(
         product_repo, 
@@ -72,7 +72,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         settings.s3.bucket.clone(),
     );
 
-    let inventory_repo = repos::inventory::InventoryRepository::new(pool.clone());
+    let inventory_repo = repository::inventory::InventoryRepository::new(pool.clone());
     let inventory_service = new_inventory_service(inventory_repo);
 
     let app_state = AppState {

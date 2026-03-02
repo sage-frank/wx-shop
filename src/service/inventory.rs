@@ -84,7 +84,7 @@ impl<R: InventoryRepo> InventoryService for InventoryServiceImpl<R> {
 }
 
 pub fn new_inventory_service(
-    repo: Arc<crate::repos::inventory::InventoryRepository>,
+    repo: Arc<crate::repository::inventory::InventoryRepository>,
 ) -> Arc<dyn InventoryService> {
     Arc::new(InventoryServiceImpl::new(repo)) as Arc<dyn InventoryService>
 }
