@@ -12,6 +12,7 @@ use serde_json::{json, Value};
 pub struct ListInventoryReq {
     pub page: Option<u32>,
     pub page_size: Option<u32>,
+    pub product_name: Option<String>,
 }
 
 pub async fn list_inventory_handler(
@@ -20,7 +21,7 @@ pub async fn list_inventory_handler(
 ) -> Result<Json<Value>, ServiceError> {
     let page = params.page.unwrap_or(1);
     let page_size = params.page_size.unwrap_or(10);
-    let (inventory, total) = app_state.inventory_service.list_inventory(page, page_size).await?;
+    let (inventory, total) = app_state.inventory_service.list_inventory(page, page_size, params.product_name).await?;
     
     Ok(Json(json!({
         "code": 0,

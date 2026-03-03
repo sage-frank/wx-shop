@@ -21,6 +21,7 @@ pub trait InventoryService: Send + Sync {
         &'a self,
         page: u32,
         page_size: u32,
+        product_name: Option<String>,
     ) -> Pin<Box<dyn Future<Output = Result<(Vec<Inventory>, u64), ServiceError>> + Send + 'a>>;
 
     fn update_inventory<'a>(
@@ -40,10 +41,11 @@ impl<R: InventoryRepo> InventoryService for InventoryServiceImpl<R> {
         &'a self,
         page: u32,
         page_size: u32,
+        product_name: Option<String>,
     ) -> Pin<Box<dyn Future<Output = Result<(Vec<Inventory>, u64), ServiceError>> + Send + 'a>> {
         Box::pin(async move {
             self.repo
-                .list_inventory_blocking(page, page_size)
+                .list_inventory_blocking(page, page_size, product_name)
                 .await
                 .map_err(ServiceError::Database)
         })

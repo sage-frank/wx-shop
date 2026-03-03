@@ -109,20 +109,28 @@ impl ProductRepository {
         &self,
         page: u32,
         page_size: u32,
+        product_name: Option<String>,
     ) -> Result<(Vec<models::Product>, u64), sqlx::Error> {
         let offset = (if page > 0 { page - 1 } else { 0 }) * page_size;
         
-        let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM wx_products")
-            .fetch_one(&self.pool)
-            .await?;
+        let mut count_qb = sqlx::QueryBuilder::new("SELECT COUNT(*) FROM wx_products WHERE 1=1");
+        if let Some(ref name) = product_name {
+            count_qb.push(" AND product_name LIKE ");
+            count_qb.push_bind(format!("%{}%", name));
+        }
+        let total: (i64,) = count_qb.build_query_as().fetch_one(&self.pool).await?;
 
-        let products = sqlx::query_as::<_, models::Product>(
-            "SELECT * FROM wx_products ORDER BY created_at DESC LIMIT ? OFFSET ?",
-        )
-        .bind(page_size)
-        .bind(offset)
-        .fetch_all(&self.pool)
-        .await?;
+        let mut qb = sqlx::QueryBuilder::new("SELECT * FROM wx_products WHERE 1=1");
+        if let Some(name) = product_name {
+            qb.push(" AND product_name LIKE ");
+            qb.push_bind(format!("%{}%", name));
+        }
+        qb.push(" ORDER BY created_at DESC LIMIT ");
+        qb.push_bind(page_size);
+        qb.push(" OFFSET ");
+        qb.push_bind(offset);
+
+        let products = qb.build_query_as::<models::Product>().fetch_all(&self.pool).await?;
         
         Ok((products, total.0 as u64))
     }
@@ -173,6 +181,7 @@ impl ProductRepo for ProductRepository {
         &'a self,
         page: u32,
         page_size: u32,
+        product_name: Option<String>,
     ) -> std::pin::Pin<
         Box<
             dyn std::future::Future<Output = Result<(Vec<models::Product>, u64), sqlx::Error>>
@@ -180,6 +189,6 @@ impl ProductRepo for ProductRepository {
                 + 'a,
         >,
     > {
-        Box::pin(self.list_products_internal(page, page_size))
+        Box::pin(self.list_products_internal(page, page_size, product_name))
     }
 }

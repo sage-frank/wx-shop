@@ -47,6 +47,7 @@ pub trait ProductService: Send + Sync {
         &'a self,
         page: u32,
         page_size: u32,
+        product_name: Option<String>,
     ) -> Pin<Box<dyn Future<Output = Result<(Vec<models::Product>, u64), ServiceError>> + Send + 'a>>;
 
     fn upload_image<'a>(
@@ -112,12 +113,13 @@ impl<R: ProductRepo> ProductService for ProductServiceImpl<R> {
         &'a self,
         page: u32,
         page_size: u32,
+        product_name: Option<String>,
     ) -> Pin<Box<dyn Future<Output = Result<(Vec<models::Product>, u64), ServiceError>> + Send + 'a>> {
         let client = self.s3_client.clone();
         let bucket = self.s3_bucket.clone();
         Box::pin(async move {
             let (mut products, total) = self.repo
-                .list_products_blocking(page, page_size)
+                .list_products_blocking(page, page_size, product_name)
                 .await
                 .map_err(ServiceError::Database)?;
             

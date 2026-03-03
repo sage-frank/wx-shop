@@ -33,6 +33,7 @@ pub struct UpdateProductReq {
 pub struct ListProductsReq {
     pub page: Option<u32>,
     pub page_size: Option<u32>,
+    pub product_name: Option<String>,
 }
 
 pub async fn list_products_handler(
@@ -41,7 +42,7 @@ pub async fn list_products_handler(
 ) -> Result<Json<Value>, ServiceError> {
     let page = params.page.unwrap_or(1);
     let page_size = params.page_size.unwrap_or(10);
-    let (products, total) = app_state.product_service.list_products(page, page_size).await?;
+    let (products, total) = app_state.product_service.list_products(page, page_size, params.product_name).await?;
     Ok(Json(serde_json::json!({
         "code": 0,
         "msg": "success",

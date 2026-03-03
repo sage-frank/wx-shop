@@ -196,6 +196,7 @@ mod tests {
             &'a self,
             _page: u32,
             _page_size: u32,
+            _product_name: Option<String>,
         ) -> Pin<Box<dyn Future<Output = Result<(Vec<models::Product>, u64), ServiceError>> + Send + 'a>> {
             Box::pin(async { Ok((vec![], 0)) })
         }
@@ -216,6 +217,7 @@ mod tests {
             &'a self,
             _page: u32,
             _page_size: u32,
+            _product_name: Option<String>,
         ) -> Pin<Box<dyn Future<Output = Result<(Vec<models::Inventory>, u64), ServiceError>> + Send + 'a>> {
             Box::pin(async { Ok((vec![], 0)) })
         }

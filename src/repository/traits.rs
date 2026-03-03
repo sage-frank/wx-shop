@@ -28,6 +28,7 @@ pub trait ProductRepo: Send + Sync {
         &'a self,
         page: u32,
         page_size: u32,
+        product_name: Option<String>,
     ) -> Pin<Box<dyn Future<Output = Result<(Vec<models::Product>, u64), sqlx::Error>> + Send + 'a>>;
 }
 
@@ -106,6 +107,7 @@ pub trait InventoryRepo: Send + Sync {
         &self,
         page: u32,
         page_size: u32,
+        product_name: Option<String>,
     ) -> Pin<Box<dyn Future<Output = Result<(Vec<models::Inventory>, u64), sqlx::Error>> + Send>>;
 
     fn update_inventory_blocking(

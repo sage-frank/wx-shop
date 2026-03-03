@@ -21,22 +21,37 @@ impl InventoryRepo for InventoryRepository {
         &self,
         page: u32,
         page_size: u32,
+        product_name: Option<String>,
     ) -> Pin<Box<dyn Future<Output = Result<(Vec<Inventory>, u64), sqlx::Error>> + Send>> {
         let pool = self.pool.clone();
         Box::pin(async move {
             let offset = (page - 1) * page_size;
             
-            let count_query = "SELECT COUNT(*) FROM wx_inventory";
-            let total: (i64,) = sqlx::query_as(count_query)
-                .fetch_one(&pool)
-                .await?;
+            let mut count_query = sqlx::QueryBuilder::<MySql>::new("SELECT COUNT(*) FROM wx_inventory i LEFT JOIN wx_products p ON i.sku_id = p.product_id WHERE 1=1");
+            if let Some(ref name) = product_name {
+                count_query.push(" AND p.product_name LIKE ");
+                count_query.push_bind(format!("%{}%", name));
+            }
+            let total: (i64,) = count_query.build_query_as().fetch_one(&pool).await?;
                 
-            let query = "SELECT * FROM wx_inventory LIMIT ? OFFSET ?";
-            let inventory: Vec<Inventory> = sqlx::query_as(query)
-                .bind(page_size)
-                .bind(offset)
-                .fetch_all(&pool)
-                .await?;
+            let mut query = sqlx::QueryBuilder::<MySql>::new(r#"
+                SELECT i.*, p.product_name 
+                FROM wx_inventory i 
+                LEFT JOIN wx_products p ON i.sku_id = p.product_id 
+                WHERE 1=1
+            "#);
+            
+            if let Some(name) = product_name {
+                query.push(" AND p.product_name LIKE ");
+                query.push_bind(format!("%{}%", name));
+            }
+            
+            query.push(" LIMIT ");
+            query.push_bind(page_size);
+            query.push(" OFFSET ");
+            query.push_bind(offset);
+
+            let inventory: Vec<Inventory> = query.build_query_as().fetch_all(&pool).await?;
                 
             Ok((inventory, total.0 as u64))
         })
@@ -95,7 +110,13 @@ impl InventoryRepo for InventoryRepository {
     ) -> Pin<Box<dyn Future<Output = Result<Option<Inventory>, sqlx::Error>> + Send>> {
         let pool = self.pool.clone();
         Box::pin(async move {
-            let inventory = sqlx::query_as("SELECT * FROM wx_inventory WHERE inv_id = ?")
+            let query = r#"
+                SELECT i.*, p.product_name 
+                FROM wx_inventory i 
+                LEFT JOIN wx_products p ON i.sku_id = p.product_id 
+                WHERE i.inv_id = ?
+            "#;
+            let inventory = sqlx::query_as(query)
                 .bind(inv_id)
                 .fetch_optional(&pool)
                 .await?;

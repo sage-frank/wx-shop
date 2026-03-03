@@ -70,6 +70,7 @@ pub struct Product {
 pub struct Inventory {
     pub inv_id: i32,
     pub sku_id: i32,
+    pub product_name: Option<String>,
     pub warehouse_id: Option<i32>,
     pub available_quantity: i32,
     pub frozen_quantity: i32,
