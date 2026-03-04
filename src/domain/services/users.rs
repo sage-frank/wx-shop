@@ -1,7 +1,7 @@
-use crate::repository::traits::UserRepo;
-use crate::models;
-use crate::repository::users::UserRepository;
-use crate::services::{Future, Pin, ServiceError, ServiceResultWithLifetime};
+use crate::infra::repository::traits::UserRepo;
+use crate::domain::models;
+use crate::infra::repository::users::UserRepository;
+use crate::domain::services::{Future, Pin, ServiceError, ServiceResultWithLifetime};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 

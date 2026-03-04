@@ -1,24 +1,24 @@
-mod handlers;
-mod models;
-mod repository;
-mod routes;
-mod services;
+use wx_shop::{
+    api,
+    domain::services::{
+        inventory::new_inventory_service,
+        orders::new_order_service,
+        products::new_product_service,
+        users::new_user_service,
+    },
+    infra::repository,
+    AppState, Settings,
+};
 
-use axum::{extract::FromRef, Router, body::Body};
+use axum::{Router, body::Body};
 use clap::Parser;
-use std::sync::Arc;
 use tokio::signal;
-use tower_http::classify::{ServerErrorsAsFailures, SharedClassifier};
 use tower_http::trace::TraceLayer;
-use tower_sessions::{cookie::time::Duration, Expiry, Session, SessionManagerLayer};
-use tower_sessions_redis_store::{fred::clients::Pool as RedisPool, RedisStore};
+use tower_http::classify::{ServerErrorsAsFailures, SharedClassifier};
+use tower_sessions::{Expiry, Session, SessionManagerLayer, cookie::time::Duration};
+use tower_sessions_redis_store::{RedisStore, fred::clients::Pool as RedisPool};
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
-
-use crate::services::orders::{new_order_service, OrderService};
-use crate::services::users::{new_user_service, UserService};
-use crate::services::products::{new_product_service, ProductService};
-use crate::services::inventory::{new_inventory_service, InventoryService};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -28,26 +28,12 @@ struct Args {
     conf: String,
 }
 
-#[derive(Clone)]
-pub struct AppState {
-    pub user_service: Arc<dyn UserService>,
-    pub order_service: Arc<dyn OrderService>,
-    pub product_service: Arc<dyn ProductService>,
-    pub inventory_service: Arc<dyn InventoryService>,
-}
-
-impl FromRef<AppState> for Arc<dyn UserService> {
-    fn from_ref(state: &AppState) -> Self {
-        state.user_service.clone()
-    }
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
     // 1. 加载配置
-    let settings = wx_shop::Settings::new(&args.conf)?;
+    let settings = Settings::new(&args.conf)?;
 
     // 2. 初始化日志 (保留 guards 防止日志线程过早销毁)
     let _guards = init_tracing(&settings);
@@ -65,11 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let product_repo = repository::products::ProductRepository::new(pool.clone());
     let s3_client = settings.get_s3_client();
-    let product_service = new_product_service(
-        product_repo, 
-        s3_client, 
-        settings.s3.bucket.clone(),
-    );
+    let product_service = new_product_service(product_repo, s3_client, settings.s3.bucket.clone());
 
     let inventory_repo = repository::inventory::InventoryRepository::new(pool.clone());
     let inventory_service = new_inventory_service(inventory_repo);
@@ -88,11 +70,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_expiry(Expiry::OnInactivity(Duration::seconds(3600)));
 
     let app = Router::new()
-        .merge(routes::routes())
+        .merge(api::routes::routes())
         .with_state(app_state)
-        .layer(axum::middleware::from_fn(
-            routes::middleware::print_request_body,
-        ))
+        .layer(axum::middleware::from_fn(api::middleware::print_request_body))
         .layer(build_trace_layer())
         .layer(session_layer);
 
@@ -108,7 +88,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn init_tracing(settings: &wx_shop::Settings) -> Vec<WorkerGuard> {
+fn init_tracing(settings: &Settings) -> Vec<WorkerGuard> {
     let file_appender = tracing_appender::rolling::Builder::new()
         .rotation(tracing_appender::rolling::Rotation::DAILY)
         .filename_prefix(&settings.log.file)
@@ -133,18 +113,22 @@ fn init_tracing(settings: &wx_shop::Settings) -> Vec<WorkerGuard> {
     vec![guard_file, guard_stdout]
 }
 
-async fn init_db_pool(settings: &wx_shop::Settings) -> Result<sqlx::MySqlPool, Box<dyn std::error::Error>> {
+async fn init_db_pool(
+    settings: &Settings,
+) -> Result<sqlx::MySqlPool, Box<dyn std::error::Error>> {
     let pool = tokio::time::timeout(
         std::time::Duration::from_secs(10),
         settings.get_database_pool(),
     )
     .await??;
-    
+
     tracing::info!("Database connection pool created successfully.");
     Ok(pool)
 }
 
-async fn init_redis_pool(settings: &wx_shop::Settings) -> Result<RedisPool, Box<dyn std::error::Error>> {
+async fn init_redis_pool(
+    settings: &Settings,
+) -> Result<RedisPool, Box<dyn std::error::Error>> {
     let pool = tokio::time::timeout(
         std::time::Duration::from_secs(10),
         settings.get_redis_pool(),
@@ -160,7 +144,7 @@ fn trace_make_span(request: &axum::http::Request<Body>) -> tracing::Span {
     let session_id = request
         .extensions()
         .get::<Session>()
-        .and_then(|s| s.id().map(|id| id.to_string()))
+        .and_then(|s: &Session| s.id().map(|id| id.to_string()))
         .unwrap_or_else(|| "N/A".to_string());
 
     tracing::info_span!(
@@ -194,7 +178,10 @@ fn build_trace_layer() -> ShopTraceLayer {
     TraceLayer::new_for_http()
         .make_span_with(trace_make_span as fn(&axum::http::Request<Body>) -> tracing::Span)
         .on_request(trace_on_request as fn(&axum::http::Request<Body>, &tracing::Span))
-        .on_response(trace_on_response as fn(&axum::http::Response<Body>, std::time::Duration, &tracing::Span))
+        .on_response(
+            trace_on_response
+                as fn(&axum::http::Response<Body>, std::time::Duration, &tracing::Span),
+        )
 }
 
 async fn shutdown_signal() {
@@ -220,5 +207,5 @@ async fn shutdown_signal() {
         _ = terminate => {},
     }
 
-    tracing::info!("signal received, starting graceful shutdown");
+    tracing::info!("termination signal received");
 }

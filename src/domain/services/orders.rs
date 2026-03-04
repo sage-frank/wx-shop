@@ -1,10 +1,10 @@
-use crate::models::dto::params::CreateOrderWithItemsParams;
-use crate::repository::traits::OrderRepo;
-use crate::models;
-use crate::services::{ServiceError, ServiceResultWithLifetime};
+use crate::domain::models::dto::params::CreateOrderWithItemsParams;
+use crate::infra::repository::traits::OrderRepo;
+use crate::domain::models;
+use crate::domain::services::{ServiceError, ServiceResultWithLifetime};
 use serde_json::Value;
 use std::sync::Arc;
-use wx_shop::ids;
+use crate::ids;
 
 pub struct OrderServiceImpl<R: OrderRepo + 'static> {
     repo: Arc<R>,
@@ -169,7 +169,7 @@ impl<R: OrderRepo + 'static> OrderService for OrderServiceImpl<R> {
 }
 
 pub fn new_order_service(
-    repo: Arc<crate::repository::orders::OrderRepository>,
+    repo: Arc<crate::infra::repository::orders::OrderRepository>,
 ) -> Arc<dyn OrderService> {
     Arc::new(OrderServiceImpl::new(repo)) as Arc<dyn OrderService>
 }

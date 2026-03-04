@@ -1,9 +1,6 @@
-use crate::repository::traits::UserRepo;
-use crate::models;
+use crate::{domain::models, infra::repository::traits::UserRepo};
 use sqlx::{MySql, Pool};
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::Arc;
+use std::{future::Future, pin::Pin, sync::Arc};
 
 pub struct UserRepository {
     pool: Pool<MySql>,

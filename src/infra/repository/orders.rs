@@ -1,6 +1,6 @@
-use crate::models::dto::params::CreateOrderWithItemsParams;
-use crate::repository::traits::OrderRepo;
-use crate::models;
+use crate::domain::models;
+use crate::domain::models::dto::params::CreateOrderWithItemsParams;
+use crate::infra::repository::traits::OrderRepo;
 use serde_json::Value;
 use sqlx::{MySql, Pool, QueryBuilder};
 use std::sync::Arc;

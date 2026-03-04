@@ -1,6 +1,9 @@
-use crate::models::dto::params::UpdateInventoryParams;
-use crate::services::ServiceError;
+use crate::domain::models::dto::params::UpdateInventoryParams;
+use crate::domain::services::ServiceError;
 use crate::AppState;
+
+
+
 use axum::{
     extract::{Path, Query, State},
     Json,

@@ -1,7 +1,7 @@
-use crate::models::dto::params::{CreateProductParams, UpdateProductParams};
-use crate::repository::traits::ProductRepo;
-use crate::models;
-use crate::services::{Future, Pin, ServiceError, ServiceResultWithLifetime};
+use crate::domain::models;
+use crate::domain::models::dto::params::{CreateProductParams, UpdateProductParams};
+use crate::domain::services::{Future, Pin, ServiceError, ServiceResultWithLifetime};
+use crate::infra::repository::traits::ProductRepo;
 use std::sync::Arc;
 
 pub struct ProductServiceImpl<R: ProductRepo + 'static> {
@@ -160,7 +160,7 @@ impl<R: ProductRepo> ProductService for ProductServiceImpl<R> {
 }
 
 pub fn new_product_service(
-    repo: Arc<crate::repository::products::ProductRepository>,
+    repo: Arc<crate::infra::repository::products::ProductRepository>,
     s3_client: aws_sdk_s3::Client,
     s3_bucket: String,
 ) -> Arc<dyn ProductService> {

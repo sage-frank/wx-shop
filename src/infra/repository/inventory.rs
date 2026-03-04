@@ -1,10 +1,10 @@
-use crate::repository::traits::InventoryRepo;
-use crate::models::dto::params::UpdateInventoryParams;
-use crate::models::Inventory;
+use crate::infra::repository::traits::InventoryRepo;
+use crate::domain::models::dto::params::UpdateInventoryParams;
+use crate::domain::models::Inventory;
 use sqlx::{MySql, Pool};
 use std::sync::Arc;
-use std::future::Future;
 use std::pin::Pin;
+use std::future::Future;
 
 pub struct InventoryRepository {
     pool: Pool<MySql>,

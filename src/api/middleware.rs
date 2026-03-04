@@ -1,4 +1,4 @@
-use crate::models;
+use crate::domain::models;
 use axum::body::{Body, Bytes};
 use axum::{Json, http::StatusCode, response::IntoResponse};
 use axum::{extract::Request, middleware::Next};
@@ -33,12 +33,12 @@ pub async fn print_request_body(
     next: Next,
 ) -> Result<axum::response::Response, axum::http::StatusCode> {
     let (parts, body) = request.into_parts();
-    
+
     // 记录 Path 和 Query
     let path = parts.uri.path().to_string();
     let query = parts.uri.query().unwrap_or("").to_string();
     let method = parts.method.clone();
-    
+
     // 提取 Content-Type 用于后续判断
     let content_type = parts
         .headers
@@ -47,7 +47,12 @@ pub async fn print_request_body(
         .unwrap_or("")
         .to_string();
 
-    tracing::info!("Processing request: method={} path={} query={}", method, path, query);
+    tracing::info!(
+        "Processing request: method={} path={} query={}",
+        method,
+        path,
+        query
+    );
 
     // 如果是 multipart/form-data，直接跳过 Body 读取
     if content_type.starts_with("multipart/form-data") {
@@ -72,7 +77,7 @@ pub async fn print_request_body(
     if bytes.len() > MAX_BODY_SIZE {
         let len = bytes.len();
         tokio::spawn(async move {
-             tracing::info!("Body: [Too large to log, size={}]", len);
+            tracing::info!("Body: [Too large to log, size={}]", len);
         });
     } else {
         // 克隆 bytes 用于异步日志记录（Bytes 是引用计数，克隆开销很小）
@@ -96,14 +101,21 @@ async fn log_body_content(bytes: Bytes, content_type: String) {
             truncate_json_strings(&mut json_val, 200); // 字符串超过 200 字符就截断
             tracing::info!("Body (JSON): {}", json_val);
         } else {
-             // JSON 解析失败，回退到字符串打印
-             log_raw_string(&bytes);
+            // JSON 解析失败，回退到字符串打印
+            log_raw_string(&bytes);
         }
-    } else if content_type.contains("text") || content_type.contains("xml") || content_type.contains("x-www-form-urlencoded") {
+    } else if content_type.contains("text")
+        || content_type.contains("xml")
+        || content_type.contains("x-www-form-urlencoded")
+    {
         log_raw_string(&bytes);
     } else {
         // 二进制或其他
-        tracing::info!("Body: [Binary or unknown content type: {}, size={}]", content_type, bytes.len());
+        tracing::info!(
+            "Body: [Binary or unknown content type: {}, size={}]",
+            content_type,
+            bytes.len()
+        );
     }
 }
 

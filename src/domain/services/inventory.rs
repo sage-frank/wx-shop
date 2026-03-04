@@ -1,7 +1,9 @@
-use crate::repository::traits::InventoryRepo;
-use crate::models::dto::params::UpdateInventoryParams;
-use crate::models::Inventory;
-use crate::services::{Future, Pin, ServiceError, ServiceResultWithLifetime};
+use crate::infra::repository::traits::InventoryRepo;
+use crate::domain::models::dto::params::UpdateInventoryParams;
+use crate::domain::models::Inventory;
+use crate::domain::services::{Future, Pin, ServiceError, ServiceResultWithLifetime};
+
+
 use std::sync::Arc;
 
 pub struct InventoryServiceImpl<R: InventoryRepo + 'static> {
@@ -81,7 +83,7 @@ impl<R: InventoryRepo> InventoryService for InventoryServiceImpl<R> {
 }
 
 pub fn new_inventory_service(
-    repo: Arc<crate::repository::inventory::InventoryRepository>,
+    repo: Arc<crate::infra::repository::inventory::InventoryRepository>,
 ) -> Arc<dyn InventoryService> {
     Arc::new(InventoryServiceImpl::new(repo)) as Arc<dyn InventoryService>
 }

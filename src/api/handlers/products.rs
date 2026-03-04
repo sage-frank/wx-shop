@@ -1,6 +1,6 @@
 use crate::AppState;
-use crate::models::dto::params::{CreateProductParams, UpdateProductParams};
-use crate::services::ServiceError;
+use crate::domain::models::dto::params::{CreateProductParams, UpdateProductParams};
+use crate::domain::services::ServiceError;
 use axum::{Json, extract::Path, extract::Query, extract::State};
 use serde::Deserialize;
 use serde_json::Value;

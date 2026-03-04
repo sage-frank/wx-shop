@@ -1,3 +1,30 @@
+
+pub mod api;
+pub mod domain;
+pub mod infra;
+
+use std::sync::Arc;
+use axum::extract::FromRef;
+use domain::services::inventory::InventoryService;
+use domain::services::orders::OrderService;
+use domain::services::products::ProductService;
+use domain::services::users::UserService;
+
+#[derive(Clone)]
+pub struct AppState {
+    pub user_service: Arc<dyn UserService>,
+    pub order_service: Arc<dyn OrderService>,
+    pub product_service: Arc<dyn ProductService>,
+    pub inventory_service: Arc<dyn InventoryService>,
+}
+
+impl FromRef<AppState> for Arc<dyn UserService> {
+    fn from_ref(state: &AppState) -> Self {
+        state.user_service.clone()
+    }
+}
+
+
 use serde::Deserialize;
 use sqlx::mysql::MySqlPoolOptions;
 use sqlx::{MySql, Pool};

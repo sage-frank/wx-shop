@@ -1,6 +1,4 @@
-use crate::models;
-use crate::models::dto::params::{CreateOrderWithItemsParams, CreateProductParams, UpdateInventoryParams, UpdateProductParams};
-use serde_json::Value;
+use crate::domain::models::{self, dto::params::{CreateOrderWithItemsParams, CreateProductParams, UpdateInventoryParams, UpdateProductParams}};use serde_json::Value;
 use std::future::Future;
 use std::pin::Pin;
 
