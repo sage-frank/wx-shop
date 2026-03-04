@@ -1,10 +1,8 @@
 use crate::models::dto::params::CreateOrderWithItemsParams;
 use crate::repository::traits::OrderRepo;
 use crate::models;
-use crate::services::ServiceError;
+use crate::services::{ServiceError, ServiceResultWithLifetime};
 use serde_json::Value;
-use std::future::Future;
-use std::pin::Pin;
 use std::sync::Arc;
 use wx_shop::ids;
 
@@ -30,12 +28,12 @@ pub trait OrderService: Send + Sync {
     fn create_order_with_items<'a>(
         &'a self,
         args: CreateOrderWithItemsArgs,
-    ) -> Pin<Box<dyn Future<Output = Result<String, ServiceError>> + Send + 'a>>;
+    ) -> ServiceResultWithLifetime<'a, String>;
 
     fn delete_order<'a>(
         &'a self,
         order_id: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<(), ServiceError>> + Send + 'a>>;
+    ) -> ServiceResultWithLifetime<'a, ()>;
 
     fn update_order<'a>(
         &'a self,
@@ -43,29 +41,29 @@ pub trait OrderService: Send + Sync {
         pay_amount: Option<f64>,
         order_status: Option<i8>,
         consignee_info: Option<Value>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), ServiceError>> + Send + 'a>>;
+    ) -> ServiceResultWithLifetime<'a, ()>;
 
     fn get_order<'a>(
         &'a self,
         order_id: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<models::Order, ServiceError>> + Send + 'a>>;
+    ) -> ServiceResultWithLifetime<'a, models::Order>;
 
     fn get_order_items<'a>(
         &'a self,
         order_id: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<models::OrderItem>, ServiceError>> + Send + 'a>>;
+    ) -> ServiceResultWithLifetime<'a, Vec<models::OrderItem>>;
 
     fn cancel_order<'a>(
         &'a self,
         order_id: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<(), ServiceError>> + Send + 'a>>;
+    ) -> ServiceResultWithLifetime<'a, ()>;
 }
 
 impl<R: OrderRepo + 'static> OrderService for OrderServiceImpl<R> {
     fn create_order_with_items<'a>(
         &'a self,
         args: CreateOrderWithItemsArgs,
-    ) -> Pin<Box<dyn Future<Output = Result<String, ServiceError>> + Send + 'a>> {
+    ) -> ServiceResultWithLifetime<'a, String> {
         Box::pin(async move {
             let CreateOrderWithItemsArgs {
                 user_id,
@@ -103,7 +101,7 @@ impl<R: OrderRepo + 'static> OrderService for OrderServiceImpl<R> {
     fn delete_order<'a>(
         &'a self,
         order_id: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<(), ServiceError>> + Send + 'a>> {
+    ) -> ServiceResultWithLifetime<'a, ()> {
         Box::pin(async move {
             self.repo
                 .delete_order_blocking(order_id)
@@ -118,7 +116,7 @@ impl<R: OrderRepo + 'static> OrderService for OrderServiceImpl<R> {
         pay_amount: Option<f64>,
         order_status: Option<i8>,
         consignee_info: Option<Value>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), ServiceError>> + Send + 'a>> {
+    ) -> ServiceResultWithLifetime<'a, ()> {
         Box::pin(async move {
             self.repo
                 .update_order_blocking(order_id, pay_amount, order_status, consignee_info)
@@ -130,7 +128,7 @@ impl<R: OrderRepo + 'static> OrderService for OrderServiceImpl<R> {
     fn get_order<'a>(
         &'a self,
         order_id: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<models::Order, ServiceError>> + Send + 'a>> {
+    ) -> ServiceResultWithLifetime<'a, models::Order> {
         Box::pin(async move {
             let opt = self
                 .repo
@@ -145,7 +143,7 @@ impl<R: OrderRepo + 'static> OrderService for OrderServiceImpl<R> {
     fn get_order_items<'a>(
         &'a self,
         order_id: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<models::OrderItem>, ServiceError>> + Send + 'a>>
+    ) -> ServiceResultWithLifetime<'a, Vec<models::OrderItem>>
     {
         Box::pin(async move {
             let items = self
@@ -160,7 +158,7 @@ impl<R: OrderRepo + 'static> OrderService for OrderServiceImpl<R> {
     fn cancel_order<'a>(
         &'a self,
         order_id: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<(), ServiceError>> + Send + 'a>> {
+    ) -> ServiceResultWithLifetime<'a, ()> {
         Box::pin(async move {
             self.repo
                 .cancel_order_blocking(order_id)

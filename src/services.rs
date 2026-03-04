@@ -5,7 +5,11 @@ pub mod inventory;
 
 use axum::response::{IntoResponse, Response};
 use axum::{Json, http::StatusCode};
+pub use std::future::Future;
+pub use std::pin::Pin;
 use serde_json::json;
+
+pub type ServiceResultWithLifetime<'a, T> = Pin<Box<dyn Future<Output = Result<T, ServiceError>> + Send + 'a>>;
 
 #[derive(Debug)]
 pub enum ServiceError {

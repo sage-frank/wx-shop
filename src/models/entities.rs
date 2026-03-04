@@ -1,5 +1,7 @@
-pub use crate::models::User;
-pub use crate::models::Order;
-pub use crate::models::OrderItem;
-pub use crate::models::Product;
-pub use crate::models::Inventory;
+pub mod orders;
+pub mod products;
+pub mod users;
+
+pub use orders::{Order, OrderItem};
+pub use products::{Inventory, Product};
+pub use users::User;

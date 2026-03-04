@@ -1,9 +1,7 @@
 use crate::repository::traits::InventoryRepo;
 use crate::models::dto::params::UpdateInventoryParams;
 use crate::models::Inventory;
-use crate::services::ServiceError;
-use std::future::Future;
-use std::pin::Pin;
+use crate::services::{Future, Pin, ServiceError, ServiceResultWithLifetime};
 use std::sync::Arc;
 
 pub struct InventoryServiceImpl<R: InventoryRepo + 'static> {
@@ -42,7 +40,7 @@ impl<R: InventoryRepo> InventoryService for InventoryServiceImpl<R> {
         page: u32,
         page_size: u32,
         product_name: Option<String>,
-    ) -> Pin<Box<dyn Future<Output = Result<(Vec<Inventory>, u64), ServiceError>> + Send + 'a>> {
+    ) -> ServiceResultWithLifetime<'a, (Vec<Inventory>, u64)> {
         Box::pin(async move {
             self.repo
                 .list_inventory_blocking(page, page_size, product_name)
@@ -55,7 +53,7 @@ impl<R: InventoryRepo> InventoryService for InventoryServiceImpl<R> {
         &'a self,
         inv_id: i32,
         params: UpdateInventoryParams,
-    ) -> Pin<Box<dyn Future<Output = Result<(), ServiceError>> + Send + 'a>> {
+    ) -> ServiceResultWithLifetime<'a, ()> {
         Box::pin(async move {
             self.repo
                 .update_inventory_blocking(inv_id, params)
@@ -70,7 +68,7 @@ impl<R: InventoryRepo> InventoryService for InventoryServiceImpl<R> {
     fn get_inventory<'a>(
         &'a self,
         inv_id: i32,
-    ) -> Pin<Box<dyn Future<Output = Result<Inventory, ServiceError>> + Send + 'a>> {
+    ) -> ServiceResultWithLifetime<'a, Inventory> {
         Box::pin(async move {
             let opt = self
                 .repo

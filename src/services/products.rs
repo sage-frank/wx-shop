@@ -1,9 +1,7 @@
 use crate::models::dto::params::{CreateProductParams, UpdateProductParams};
 use crate::repository::traits::ProductRepo;
 use crate::models;
-use crate::services::ServiceError;
-use std::future::Future;
-use std::pin::Pin;
+use crate::services::{Future, Pin, ServiceError, ServiceResultWithLifetime};
 use std::sync::Arc;
 
 pub struct ProductServiceImpl<R: ProductRepo + 'static> {
@@ -87,7 +85,7 @@ impl<R: ProductRepo> ProductService for ProductServiceImpl<R> {
     fn get_product<'a>(
         &'a self,
         product_id: i32,
-    ) -> Pin<Box<dyn Future<Output = Result<models::Product, ServiceError>> + Send + 'a>> {
+    ) -> ServiceResultWithLifetime<'a, models::Product> {
         let client = self.s3_client.clone();
         let bucket = self.s3_bucket.clone();
         Box::pin(async move {
@@ -98,12 +96,11 @@ impl<R: ProductRepo> ProductService for ProductServiceImpl<R> {
                 .map_err(ServiceError::Database)?;
             let mut product = opt.ok_or_else(|| ServiceError::NotFound("product not found".into()))?;
             
-            if let Some(key) = &product.image_url {
-                if !key.starts_with("http") {
-                    if let Some(url) = sign_url(&client, &bucket, key).await {
-                        product.image_url = Some(url);
-                    }
-                }
+            if let Some(key) = &product.image_url 
+                && !key.starts_with("http")
+                && let Some(url) = sign_url(&client, &bucket, key).await 
+            {
+                product.image_url = Some(url);
             }
             Ok(product)
         })
@@ -114,7 +111,7 @@ impl<R: ProductRepo> ProductService for ProductServiceImpl<R> {
         page: u32,
         page_size: u32,
         product_name: Option<String>,
-    ) -> Pin<Box<dyn Future<Output = Result<(Vec<models::Product>, u64), ServiceError>> + Send + 'a>> {
+    ) -> ServiceResultWithLifetime<'a, (Vec<models::Product>, u64)> {
         let client = self.s3_client.clone();
         let bucket = self.s3_bucket.clone();
         Box::pin(async move {
@@ -124,12 +121,11 @@ impl<R: ProductRepo> ProductService for ProductServiceImpl<R> {
                 .map_err(ServiceError::Database)?;
             
             for product in &mut products {
-                if let Some(key) = &product.image_url {
-                    if !key.starts_with("http") {
-                        if let Some(url) = sign_url(&client, &bucket, key).await {
-                            product.image_url = Some(url);
-                        }
-                    }
+                if let Some(key) = &product.image_url 
+                    && !key.starts_with("http")
+                    && let Some(url) = sign_url(&client, &bucket, key).await 
+                {
+                    product.image_url = Some(url);
                 }
             }
             Ok((products, total))
@@ -141,7 +137,7 @@ impl<R: ProductRepo> ProductService for ProductServiceImpl<R> {
         file_name: String,
         file_data: Vec<u8>,
         content_type: String,
-    ) -> Pin<Box<dyn Future<Output = Result<String, ServiceError>> + Send + 'a>> {
+    ) -> ServiceResultWithLifetime<'a, String> {
         let client = self.s3_client.clone();
         let bucket = self.s3_bucket.clone();
         

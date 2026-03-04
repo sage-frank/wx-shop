@@ -4,6 +4,9 @@ use serde_json::Value;
 use std::future::Future;
 use std::pin::Pin;
 
+pub type RepoResult<T> = Pin<Box<dyn Future<Output = Result<T, sqlx::Error>> + Send>>;
+pub type RepoResultWithLifetime<'a, T> = Pin<Box<dyn Future<Output = Result<T, sqlx::Error>> + Send + 'a>>;
+
 pub trait ProductRepo: Send + Sync {
     fn clone_box(&self) -> Box<dyn ProductRepo>;
     fn as_any(&self) -> &dyn std::any::Any;
@@ -11,25 +14,25 @@ pub trait ProductRepo: Send + Sync {
     fn create_product_blocking<'a>(
         &'a self,
         params: CreateProductParams,
-    ) -> Pin<Box<dyn Future<Output = Result<i32, sqlx::Error>> + Send + 'a>>;
+    ) -> RepoResultWithLifetime<'a, i32>;
 
     fn update_product_blocking<'a>(
         &'a self,
         product_id: i32,
         params: UpdateProductParams,
-    ) -> Pin<Box<dyn Future<Output = Result<(), sqlx::Error>> + Send + 'a>>;
+    ) -> RepoResultWithLifetime<'a, ()>;
 
     fn get_product_blocking<'a>(
         &'a self,
         product_id: i32,
-    ) -> Pin<Box<dyn Future<Output = Result<Option<models::Product>, sqlx::Error>> + Send + 'a>>;
+    ) -> RepoResultWithLifetime<'a, Option<models::Product>>;
 
     fn list_products_blocking<'a>(
         &'a self,
         page: u32,
         page_size: u32,
         product_name: Option<String>,
-    ) -> Pin<Box<dyn Future<Output = Result<(Vec<models::Product>, u64), sqlx::Error>> + Send + 'a>>;
+    ) -> RepoResultWithLifetime<'a, (Vec<models::Product>, u64)>;
 }
 
 impl Clone for Box<dyn ProductRepo> {
@@ -45,12 +48,12 @@ pub trait OrderRepo: Send + Sync {
     fn create_order_with_items_blocking<'a>(
         &'a self,
         params: CreateOrderWithItemsParams,
-    ) -> Pin<Box<dyn Future<Output = Result<(), sqlx::Error>> + Send + 'a>>;
+    ) -> RepoResultWithLifetime<'a, ()>;
 
     fn delete_order_blocking<'a>(
         &'a self,
         order_id: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<(), sqlx::Error>> + Send + 'a>>;
+    ) -> RepoResultWithLifetime<'a, ()>;
 
     fn update_order_blocking<'a>(
         &'a self,
@@ -58,22 +61,22 @@ pub trait OrderRepo: Send + Sync {
         pay_amount: Option<f64>,
         order_status: Option<i8>,
         consignee_info: Option<Value>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), sqlx::Error>> + Send + 'a>>;
+    ) -> RepoResultWithLifetime<'a, ()>;
 
     fn get_order_blocking<'a>(
         &'a self,
         order_id: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<Option<models::Order>, sqlx::Error>> + Send + 'a>>;
+    ) -> RepoResultWithLifetime<'a, Option<models::Order>>;
 
     fn get_order_items_blocking<'a>(
         &'a self,
         order_id: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<models::OrderItem>, sqlx::Error>> + Send + 'a>>;
+    ) -> RepoResultWithLifetime<'a, Vec<models::OrderItem>>;
 
     fn cancel_order_blocking<'a>(
         &'a self,
         order_id: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<(), sqlx::Error>> + Send + 'a>>;
+    ) -> RepoResultWithLifetime<'a, ()>;
 }
 
 impl Clone for Box<dyn OrderRepo> {
@@ -89,11 +92,11 @@ pub trait UserRepo: Send + Sync {
     fn find_by_username_blocking<'a>(
         &'a self,
         username: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<Option<models::User>, sqlx::Error>> + Send + 'a>>;
+    ) -> RepoResultWithLifetime<'a, Option<models::User>>;
     fn find_user_by_id_blocking<'a>(
         &'a self,
         id: u32,
-    ) -> Pin<Box<dyn Future<Output = Result<Option<models::User>, sqlx::Error>> + Send + 'a>>;
+    ) -> RepoResultWithLifetime<'a, Option<models::User>>;
 }
 
 impl Clone for Box<dyn UserRepo> {
@@ -108,16 +111,16 @@ pub trait InventoryRepo: Send + Sync {
         page: u32,
         page_size: u32,
         product_name: Option<String>,
-    ) -> Pin<Box<dyn Future<Output = Result<(Vec<models::Inventory>, u64), sqlx::Error>> + Send>>;
+    ) -> RepoResult<(Vec<models::Inventory>, u64)>;
 
     fn update_inventory_blocking(
         &self,
         inv_id: i32,
         params: UpdateInventoryParams,
-    ) -> Pin<Box<dyn Future<Output = Result<(), sqlx::Error>> + Send>>;
+    ) -> RepoResult<()>;
     
     fn get_inventory_blocking(
         &self,
         inv_id: i32,
-    ) -> Pin<Box<dyn Future<Output = Result<Option<models::Inventory>, sqlx::Error>> + Send>>;
+    ) -> RepoResult<Option<models::Inventory>>;
 }

@@ -1,10 +1,8 @@
 use crate::repository::traits::UserRepo;
 use crate::models;
 use crate::repository::users::UserRepository;
-use crate::services::ServiceError;
+use crate::services::{Future, Pin, ServiceError, ServiceResultWithLifetime};
 use sha2::{Digest, Sha256};
-use std::future::Future;
-use std::pin::Pin;
 use std::sync::Arc;
 
 pub trait UserService: Send + Sync {
@@ -16,7 +14,7 @@ pub trait UserService: Send + Sync {
     fn find_user_by_id<'a>(
         &'a self,
         id: u32,
-    ) -> Pin<Box<dyn Future<Output = Result<models::User, ServiceError>> + Send + 'a>>;
+    ) -> ServiceResultWithLifetime<'a, models::User>;
 }
 
 pub struct UserServiceImpl<R: UserRepo + 'static> {
@@ -62,7 +60,7 @@ impl<R: UserRepo + 'static> UserService for UserServiceImpl<R> {
     fn find_user_by_id<'a>(
         &'a self,
         id: u32,
-    ) -> Pin<Box<dyn Future<Output = Result<models::User, ServiceError>> + Send + 'a>> {
+    ) -> ServiceResultWithLifetime<'a, models::User> {
         Box::pin(async move {
             let user_opt = self.repo.find_user_by_id_blocking(id).await?;
             let user = user_opt
