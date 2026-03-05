@@ -120,8 +120,10 @@ pub async fn cancel_order_handler(
     State(app_state): State<AppState>,
     Path(order_id): Path<String>,
 ) -> Result<Json<serde_json::Value>, ServiceError> {
+    
     match app_state.order_service.cancel_order(&order_id).await {
         Ok(_) => Ok(Json(serde_json::json!({"code":0,"msg":"success"}))),
         Err(e) => Err(e),
     }
 }
+

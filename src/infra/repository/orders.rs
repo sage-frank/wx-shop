@@ -30,35 +30,37 @@ impl OrderRepository {
             items,
         } = params;
 
+        // 1. 插入订单主表
         sqlx::query(
-            r#"INSERT INTO wx_orders (order_id, user_id, total_amount, pay_amount, order_status, consignee_info)
-               VALUES (?, ?, ?, ?, ?, ?)"#,
-        )
-            .bind(&order_id)
-            .bind(user_id)
-            .bind(total_amount)
-            .bind(pay_amount)
-            .bind(order_status)
-            .bind(consignee_info)
-            .execute(&mut *tx)
-            .await?;
+        r#"INSERT INTO wx_orders (order_id, user_id, total_amount, pay_amount, order_status, consignee_info)
+           VALUES (?, ?, ?, ?, ?, ?)"#,
+    )
+    .bind(&order_id)
+    .bind(user_id)
+    .bind(total_amount)
+    .bind(pay_amount)
+    .bind(order_status)
+    .bind(consignee_info)
+    .execute(&mut *tx)
+    .await?;
 
+        // 2. 对商品排序，防止并发下单时产生数据库死锁
         let mut sorted_items = items;
         sorted_items.sort_by_key(|(product_id, _, _, _, _)| *product_id);
 
-        let mut item_rows: Vec<(i32, String, i32, f64, Option<String>)> =
-            Vec::with_capacity(sorted_items.len());
+        // 预分配集合用于后续批量插入
+        let mut item_rows = Vec::with_capacity(sorted_items.len());
+        let mut log_rows = Vec::with_capacity(sorted_items.len());
 
-        // 类似: item_row :=make([]models.OrderItem,0,len(sortedItems))
-
-        for (product_id, product_name, quantity, unit_price, spec_info) in sorted_items.into_iter()
-        {
+        // 3. 循环扣减库存
+        // 注意：库存扣减必须在循环中逐条执行，因为需要判断 rows_affected 来实现乐观锁检查
+        for (product_id, product_name, quantity, unit_price, spec_info) in sorted_items {
             let result = sqlx::query(
-                r#"UPDATE wx_inventory
-                   SET available_quantity = available_quantity - ?,
-                       frozen_quantity = frozen_quantity + ?,
-                       version = version + 1
-                   WHERE sku_id = ? AND warehouse_id = 1 AND available_quantity >= ?"#,
+                r#"UPDATE wx_inventory 
+               SET available_quantity = available_quantity - ?, 
+                   frozen_quantity = frozen_quantity + ?, 
+                   version = version + 1
+               WHERE sku_id = ? AND warehouse_id = 1 AND available_quantity >= ?"#,
             )
             .bind(quantity)
             .bind(quantity)
@@ -68,27 +70,16 @@ impl OrderRepository {
             .await?;
 
             if result.rows_affected() == 0 {
+                // 如果更新失败，说明库存不足或 SKU 不存在，触发回滚
                 return Err(sqlx::Error::RowNotFound);
             }
 
-            sqlx::query(
-                r#"INSERT INTO wx_inventory_log
-                   (sku_id, change_type, change_quantity, available_quantity_after, frozen_quantity_after, related_order_id, operator, remark)
-                   SELECT sku_id, 2, ?, available_quantity, frozen_quantity, ?, ?, ?
-                   FROM wx_inventory
-                   WHERE sku_id = ? AND warehouse_id = 1"#,
-            )
-            .bind(quantity)
-            .bind(&order_id)
-            .bind("system")
-            .bind("order occupy")
-            .bind(product_id)
-            .execute(&mut *tx)
-            .await?;
-
+            // 收集数据用于后续批量写入
             item_rows.push((product_id, product_name, quantity, unit_price, spec_info));
+            log_rows.push((product_id, quantity));
         }
 
+        // 4. 批量插入订单详情 (wx_order_items)
         if !item_rows.is_empty() {
             let mut qb: QueryBuilder<MySql> = QueryBuilder::new(
                 "INSERT INTO wx_order_items (order_id, product_id, product_name, quantity, unit_price, spec_info) ",
@@ -107,7 +98,28 @@ impl OrderRepository {
             qb.build().execute(&mut *tx).await?;
         }
 
+        // 5. 批量插入库存变更日志 (wx_inventory_log) - 显著优化点
+        if !log_rows.is_empty() {
+            // 注意：这里不再从 wx_inventory SELECT，直接写入变更记录。
+            // 如果业务严格要求记录“变更后”的精确库存数值，建议在异步任务中补全，
+            // 或者接受日志中仅记录变更量的权衡，以换取极高的下单性能。
+            let mut qb: QueryBuilder<MySql> = QueryBuilder::new(
+                "INSERT INTO wx_inventory_log (sku_id, change_type, change_quantity, related_order_id, operator, remark) ",
+            );
+            qb.push_values(log_rows.iter(), |mut b, (product_id, quantity)| {
+                b.push_bind(product_id)
+                    .push_bind(2) // change_type: 2-下单占用
+                    .push_bind(quantity)
+                    .push_bind(&order_id)
+                    .push_bind("system")
+                    .push_bind("order occupy batch");
+            });
+            qb.build().execute(&mut *tx).await?;
+        }
+
+        // 6. 提交事务
         tx.commit().await?;
+
         Ok(())
     }
 

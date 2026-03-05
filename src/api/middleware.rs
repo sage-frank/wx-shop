@@ -112,7 +112,7 @@ async fn log_body_content(bytes: Bytes, content_type: String) {
     } else {
         // 二进制或其他
         tracing::info!(
-            "Body: [Binary or unknown content type: {}, size={}]",
+            "Body (Other): [Content type: {}, size={}]",
             content_type,
             bytes.len()
         );

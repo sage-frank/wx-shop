@@ -65,9 +65,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 5. 构建路由与中间件
     let session_store = RedisStore::new(redis_pool);
+
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
         .with_expiry(Expiry::OnInactivity(Duration::seconds(3600)));
+
 
     let app = Router::new()
         .merge(api::routes::routes())

@@ -73,9 +73,7 @@ pub async fn get_user_by_id_handler(
     })))
 }
 
-pub async fn logout_handler(
-    session: tower_sessions::Session,
-) -> Result<Json<serde_json::Value>, StatusCode> {
+pub async fn logout_handler(session: tower_sessions::Session) -> Result<Json<serde_json::Value>, StatusCode> {
     session.delete().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(serde_json::json!({
         "code": 0,
