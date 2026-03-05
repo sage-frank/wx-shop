@@ -96,6 +96,26 @@ fn init_tracing(settings: &Settings) -> Vec<WorkerGuard> {
         .build(&settings.log.dir)
         .expect("failed to initialize rolling file appender");
 
+    // 创建不带日期后缀的软连接，指向当天的日志文件
+    #[cfg(unix)]
+    {
+        let log_dir = std::path::Path::new(&settings.log.dir);
+        let now = chrono::Local::now();
+        let date_str = now.format("%Y-%m-%d").to_string();
+        let log_filename = format!("{}.{}", &settings.log.file, date_str);
+        let symlink_path = log_dir.join(&settings.log.file);
+
+        // 如果软连接已存在，先删除
+        if symlink_path.exists() || symlink_path.is_symlink() {
+            let _ = std::fs::remove_file(&symlink_path);
+        }
+        
+        // 创建新的软连接
+        if let Err(e) = std::os::unix::fs::symlink(&log_filename, &symlink_path) {
+            eprintln!("Failed to create log symlink: {}", e);
+        }
+    }
+
     let (non_blocking_file, guard_file) = tracing_appender::non_blocking(file_appender);
     let (non_blocking_stdout, guard_stdout) = tracing_appender::non_blocking(std::io::stdout());
 
