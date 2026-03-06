@@ -5,6 +5,7 @@ use axum::{Json, extract::Path, extract::Query, extract::State};
 use serde::Deserialize;
 use serde_json::Value;
 use sqlx::types::BigDecimal;
+use tracing::{info, instrument};
 
 #[derive(Deserialize)]
 pub struct CreateProductReq {
@@ -36,6 +37,7 @@ pub struct ListProductsReq {
     pub product_name: Option<String>,
 }
 
+#[instrument(level = "debug", skip(app_state, params), fields(page = params.page, page_size = params.page_size))]
 pub async fn list_products_handler(
     State(app_state): State<AppState>,
     Query(params): Query<ListProductsReq>,
@@ -55,10 +57,12 @@ pub async fn list_products_handler(
     })))
 }
 
+#[instrument(level = "debug", skip(app_state, req))]
 pub async fn create_product_handler(
     State(app_state): State<AppState>,
     Json(req): Json<CreateProductReq>,
 ) -> Result<Json<Value>, ServiceError> {
+    info!("create_product start");
     let params = CreateProductParams {
         product_name: req.product_name,
         category_id: req.category_id,
@@ -69,6 +73,7 @@ pub async fn create_product_handler(
         base_price: req.base_price,
     };
     let product_id = app_state.product_service.create_product(params).await?;
+    info!(product_id, "create_product success");
     Ok(Json(serde_json::json!({
         "code": 0,
         "msg": "success",
@@ -78,6 +83,7 @@ pub async fn create_product_handler(
     })))
 }
 
+#[instrument(level = "debug", skip(app_state, req), fields(product_id))]
 pub async fn update_product_handler(
     State(app_state): State<AppState>,
     Path(product_id): Path<i32>,
@@ -100,6 +106,7 @@ pub async fn update_product_handler(
     })))
 }
 
+#[instrument(level = "debug", skip(app_state), fields(product_id))]
 pub async fn off_shelf_product_handler(
     State(app_state): State<AppState>,
     Path(product_id): Path<i32>,
@@ -123,6 +130,7 @@ pub async fn off_shelf_product_handler(
 
 use axum::extract::Multipart;
 
+#[instrument(level = "debug", skip(app_state, multipart))]
 pub async fn upload_image_handler(
     State(app_state): State<AppState>,
     mut multipart: Multipart,

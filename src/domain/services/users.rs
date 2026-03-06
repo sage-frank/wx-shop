@@ -4,6 +4,7 @@ use crate::infra::repository::users::UserRepository;
 use crate::domain::services::{Future, Pin, ServiceError, ServiceResultWithLifetime};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
+use tracing::instrument;
 
 pub trait UserService: Send + Sync {
     fn login<'a>(
@@ -28,6 +29,7 @@ impl<R: UserRepo + 'static> UserServiceImpl<R> {
 }
 
 impl<R: UserRepo + 'static> UserService for UserServiceImpl<R> {
+    #[instrument(level = "debug", skip(self, password), fields(username))]
     fn login<'a>(
         &'a self,
         username: &'a str,
@@ -57,6 +59,7 @@ impl<R: UserRepo + 'static> UserService for UserServiceImpl<R> {
         })
     }
 
+    #[instrument(level = "debug", skip(self), fields(id))]
     fn find_user_by_id<'a>(
         &'a self,
         id: u32,

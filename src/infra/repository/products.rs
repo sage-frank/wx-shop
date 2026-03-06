@@ -3,6 +3,7 @@ use crate::infra::repository::traits::ProductRepo;
 use crate::domain::models;
 use sqlx::{MySql, Pool};
 use std::sync::Arc;
+use tracing::instrument;
 
 pub struct ProductRepository {
     pool: Pool<MySql>,
@@ -13,6 +14,7 @@ impl ProductRepository {
         Arc::new(Self { pool })
     }
 
+    #[instrument(level = "debug", skip(self, params))]
     async fn create_product_internal(
         &self,
         params: CreateProductParams,
@@ -34,6 +36,7 @@ impl ProductRepository {
         Ok(result.last_insert_id() as i32)
     }
 
+    #[instrument(level = "debug", skip(self, params), fields(product_id))]
     async fn update_product_internal(
         &self,
         product_id: i32,
@@ -95,6 +98,7 @@ impl ProductRepository {
         Ok(())
     }
 
+    #[instrument(level = "debug", skip(self), fields(product_id))]
     async fn get_product_internal(
         &self,
         product_id: i32,
@@ -105,6 +109,7 @@ impl ProductRepository {
             .await
     }
 
+    #[instrument(level = "debug", skip(self, product_name), fields(page, page_size))]
     async fn list_products_internal(
         &self,
         page: u32,

@@ -5,6 +5,7 @@ use crate::domain::services::{ServiceError, ServiceResultWithLifetime};
 use serde_json::Value;
 use std::sync::Arc;
 use crate::ids;
+use tracing::instrument;
 
 pub struct OrderServiceImpl<R: OrderRepo + 'static> {
     repo: Arc<R>,
@@ -60,6 +61,7 @@ pub trait OrderService: Send + Sync {
 }
 
 impl<R: OrderRepo + 'static> OrderService for OrderServiceImpl<R> {
+    #[instrument(level = "debug", skip(self, args), fields(user_id = args.user_id, items_len = args.items.len()))]
     fn create_order_with_items<'a>(
         &'a self,
         args: CreateOrderWithItemsArgs,
@@ -98,6 +100,7 @@ impl<R: OrderRepo + 'static> OrderService for OrderServiceImpl<R> {
         })
     }
 
+    #[instrument(level = "debug", skip(self, order_id), fields(order_id = %order_id))]
     fn delete_order<'a>(
         &'a self,
         order_id: &'a str,
@@ -110,6 +113,7 @@ impl<R: OrderRepo + 'static> OrderService for OrderServiceImpl<R> {
         })
     }
 
+    #[instrument(level = "debug", skip(self, order_id, pay_amount, order_status, consignee_info), fields(order_id = %order_id))]
     fn update_order<'a>(
         &'a self,
         order_id: &'a str,
@@ -125,6 +129,7 @@ impl<R: OrderRepo + 'static> OrderService for OrderServiceImpl<R> {
         })
     }
 
+    #[instrument(level = "debug", skip(self, order_id), fields(order_id = %order_id))]
     fn get_order<'a>(
         &'a self,
         order_id: &'a str,
@@ -140,6 +145,7 @@ impl<R: OrderRepo + 'static> OrderService for OrderServiceImpl<R> {
         })
     }
 
+    #[instrument(level = "debug", skip(self, order_id), fields(order_id = %order_id))]
     fn get_order_items<'a>(
         &'a self,
         order_id: &'a str,
@@ -155,6 +161,7 @@ impl<R: OrderRepo + 'static> OrderService for OrderServiceImpl<R> {
         })
     }
 
+    #[instrument(level = "debug", skip(self, order_id), fields(order_id = %order_id))]
     fn cancel_order<'a>(
         &'a self,
         order_id: &'a str,

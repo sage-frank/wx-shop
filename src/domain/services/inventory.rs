@@ -5,6 +5,7 @@ use crate::domain::services::{Future, Pin, ServiceError, ServiceResultWithLifeti
 
 
 use std::sync::Arc;
+use tracing::instrument;
 
 pub struct InventoryServiceImpl<R: InventoryRepo + 'static> {
     repo: Arc<R>,
@@ -37,6 +38,7 @@ pub trait InventoryService: Send + Sync {
 }
 
 impl<R: InventoryRepo> InventoryService for InventoryServiceImpl<R> {
+    #[instrument(level = "debug", skip(self, product_name), fields(page, page_size))]
     fn list_inventory<'a>(
         &'a self,
         page: u32,
@@ -51,6 +53,7 @@ impl<R: InventoryRepo> InventoryService for InventoryServiceImpl<R> {
         })
     }
 
+    #[instrument(level = "debug", skip(self, params), fields(inv_id))]
     fn update_inventory<'a>(
         &'a self,
         inv_id: i32,
@@ -67,6 +70,7 @@ impl<R: InventoryRepo> InventoryService for InventoryServiceImpl<R> {
         })
     }
 
+    #[instrument(level = "debug", skip(self, inv_id), fields(inv_id))]
     fn get_inventory<'a>(
         &'a self,
         inv_id: i32,

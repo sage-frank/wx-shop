@@ -3,6 +3,7 @@ use crate::domain::models::dto::params::{CreateProductParams, UpdateProductParam
 use crate::domain::services::{Future, Pin, ServiceError, ServiceResultWithLifetime};
 use crate::infra::repository::traits::ProductRepo;
 use std::sync::Arc;
+use tracing::instrument;
 
 pub struct ProductServiceImpl<R: ProductRepo + 'static> {
     repo: Arc<R>,
@@ -57,6 +58,7 @@ pub trait ProductService: Send + Sync {
 }
 
 impl<R: ProductRepo> ProductService for ProductServiceImpl<R> {
+    #[instrument(level = "debug", skip(self, params))]
     fn create_product<'a>(
         &'a self,
         params: CreateProductParams,
@@ -69,6 +71,7 @@ impl<R: ProductRepo> ProductService for ProductServiceImpl<R> {
         })
     }
 
+    #[instrument(level = "debug", skip(self, params), fields(product_id))]
     fn update_product<'a>(
         &'a self,
         product_id: i32,
@@ -82,6 +85,7 @@ impl<R: ProductRepo> ProductService for ProductServiceImpl<R> {
         })
     }
 
+    #[instrument(level = "debug", skip(self, product_id), fields(product_id))]
     fn get_product<'a>(
         &'a self,
         product_id: i32,
@@ -106,6 +110,7 @@ impl<R: ProductRepo> ProductService for ProductServiceImpl<R> {
         })
     }
 
+    #[instrument(level = "debug", skip(self, product_name), fields(page, page_size))]
     fn list_products<'a>(
         &'a self,
         page: u32,
@@ -132,6 +137,7 @@ impl<R: ProductRepo> ProductService for ProductServiceImpl<R> {
         })
     }
 
+    #[instrument(level = "debug", skip(self, file_data), fields(file_name = %file_name))]
     fn upload_image<'a>(
         &'a self,
         file_name: String,

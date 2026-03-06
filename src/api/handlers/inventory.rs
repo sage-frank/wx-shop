@@ -10,6 +10,7 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
+use tracing::instrument;
 
 #[derive(Deserialize)]
 pub struct ListInventoryReq {
@@ -18,6 +19,7 @@ pub struct ListInventoryReq {
     pub product_name: Option<String>,
 }
 
+#[instrument(level = "debug", skip(app_state, params), fields(page = params.page, page_size = params.page_size))]
 pub async fn list_inventory_handler(
     State(app_state): State<AppState>,
     Query(params): Query<ListInventoryReq>,
@@ -38,6 +40,7 @@ pub async fn list_inventory_handler(
     })))
 }
 
+#[instrument(level = "debug", skip(app_state, params), fields(inv_id))]
 pub async fn update_inventory_handler(
     State(app_state): State<AppState>,
     Path(inv_id): Path<i32>,
@@ -51,6 +54,7 @@ pub async fn update_inventory_handler(
     })))
 }
 
+#[instrument(level = "debug", skip(app_state), fields(inv_id))]
 pub async fn get_inventory_handler(
     State(app_state): State<AppState>,
     Path(inv_id): Path<i32>,

@@ -4,6 +4,7 @@ use crate::infra::repository::traits::OrderRepo;
 use serde_json::Value;
 use sqlx::{MySql, Pool, QueryBuilder};
 use std::sync::Arc;
+use tracing::instrument;
 
 pub struct OrderRepository {
     pool: Pool<MySql>,
@@ -14,6 +15,7 @@ impl OrderRepository {
         Arc::new(Self { pool })
     }
 
+    #[instrument(level = "debug", skip(self, params), fields(order_id = %params.order_id, user_id = params.user_id))]
     async fn create_order_with_items_internal(
         &self,
         params: CreateOrderWithItemsParams,
@@ -123,6 +125,7 @@ impl OrderRepository {
         Ok(())
     }
 
+    #[instrument(level = "debug", skip(self, order_id), fields(order_id = %order_id))]
     async fn delete_order_internal(&self, order_id: &str) -> Result<(), sqlx::Error> {
         let mut tx = self.pool.begin().await?;
 
@@ -140,6 +143,7 @@ impl OrderRepository {
         Ok(())
     }
 
+    #[instrument(level = "debug", skip(self, order_id, pay_amount, order_status, consignee_info), fields(order_id = %order_id))]
     async fn update_order_internal(
         &self,
         order_id: &str,
@@ -163,6 +167,7 @@ impl OrderRepository {
         Ok(())
     }
 
+    #[instrument(level = "debug", skip(self, order_id), fields(order_id = %order_id))]
     async fn get_order_internal(
         &self,
         order_id: &str,
@@ -176,6 +181,7 @@ impl OrderRepository {
             .await
     }
 
+    #[instrument(level = "debug", skip(self, order_id), fields(order_id = %order_id))]
     async fn get_order_items_internal(
         &self,
         order_id: &str,
@@ -189,6 +195,7 @@ impl OrderRepository {
             .await
     }
 
+    #[instrument(level = "debug", skip(self, order_id), fields(order_id = %order_id))]
     async fn cancel_order_internal(&self, order_id: &str) -> Result<(), sqlx::Error> {
         let mut tx = self.pool.begin().await?;
 

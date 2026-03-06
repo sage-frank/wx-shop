@@ -4,6 +4,7 @@ use crate::domain::services::orders::CreateOrderWithItemsArgs;
 use axum::{Json, extract::Path, extract::State};
 use serde::Deserialize;
 use serde_json::Value;
+use tracing::{info, warn, instrument};
 
 #[derive(Deserialize)]
 pub struct CreateOrderItemReq {
@@ -30,10 +31,12 @@ pub struct UpdateOrderReq {
     pub consignee_info: Option<Value>,
 }
 
+#[instrument(level = "debug", skip(app_state, payload), fields(user_id = payload.user_id))]
 pub async fn create_order_handler(
     State(app_state): State<AppState>,
     Json(payload): Json<CreateOrderReq>,
 ) -> Result<Json<serde_json::Value>, ServiceError> {
+    info!(user_id = payload.user_id, "create_order_handler start");
     let items = payload
         .items
         .into_iter()
@@ -59,13 +62,20 @@ pub async fn create_order_handler(
         })
         .await
     {
-        Ok(order_id) => Ok(Json(
-            serde_json::json!({"code":0,"msg":"success","data":{"order_id":order_id}}),
-        )),
-        Err(e) => Err(e),
+        Ok(order_id) => {
+            info!(user_id = payload.user_id, order_id = %order_id, "create_order_handler success");
+            Ok(Json(
+                serde_json::json!({"code":0,"msg":"success","data":{"order_id":order_id}}),
+            ))
+        }
+        Err(e) => {
+            warn!(user_id = payload.user_id, error = ?e, "create_order_handler failed");
+            Err(e)
+        }
     }
 }
 
+#[instrument(level = "debug", skip(app_state), fields(order_id = %order_id))]
 pub async fn delete_order_handler(
     State(app_state): State<AppState>,
     Path(order_id): Path<String>,
@@ -76,6 +86,7 @@ pub async fn delete_order_handler(
     }
 }
 
+#[instrument(level = "debug", skip(app_state, payload), fields(order_id = %order_id))]
 pub async fn update_order_handler(
     State(app_state): State<AppState>,
     Path(order_id): Path<String>,
@@ -96,6 +107,7 @@ pub async fn update_order_handler(
     }
 }
 
+#[instrument(level = "debug", skip(app_state), fields(order_id = %order_id))]
 pub async fn get_order_handler(
     State(app_state): State<AppState>,
     Path(order_id): Path<String>,
@@ -106,6 +118,7 @@ pub async fn get_order_handler(
     ))
 }
 
+#[instrument(level = "debug", skip(app_state), fields(order_id = %order_id))]
 pub async fn get_order_items_handler(
     State(app_state): State<AppState>,
     Path(order_id): Path<String>,
@@ -116,6 +129,7 @@ pub async fn get_order_items_handler(
     ))
 }
 
+#[instrument(level = "debug", skip(app_state), fields(order_id = %order_id))]
 pub async fn cancel_order_handler(
     State(app_state): State<AppState>,
     Path(order_id): Path<String>,
@@ -126,4 +140,3 @@ pub async fn cancel_order_handler(
         Err(e) => Err(e),
     }
 }
-
