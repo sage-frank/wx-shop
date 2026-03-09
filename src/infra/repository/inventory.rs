@@ -25,6 +25,8 @@ impl InventoryRepo for InventoryRepository {
     ) -> Pin<Box<dyn Future<Output = Result<(Vec<Inventory>, u64), sqlx::Error>> + Send>> {
         let pool = self.pool.clone();
         Box::pin(async move {
+            let page = if page == 0 { 1 } else { page };
+            let page_size = if page_size > 100 { 100 } else { page_size };
             let offset = (page - 1) * page_size;
             
             let mut count_query = sqlx::QueryBuilder::<MySql>::new("SELECT COUNT(*) FROM wx_inventory i LEFT JOIN wx_products p ON i.sku_id = p.product_id WHERE 1=1");

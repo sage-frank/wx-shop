@@ -5,6 +5,8 @@ use crate::infra::repository::traits::ProductRepo;
 use std::sync::Arc;
 use tracing::instrument;
 
+use futures::stream::{self, StreamExt};
+
 pub struct ProductServiceImpl<R: ProductRepo + 'static> {
     repo: Arc<R>,
     s3_client: aws_sdk_s3::Client,
@@ -47,12 +49,12 @@ pub trait ProductService: Send + Sync {
         page: u32,
         page_size: u32,
         product_name: Option<String>,
-    ) -> Pin<Box<dyn Future<Output = Result<(Vec<models::Product>, u64), ServiceError>> + Send + 'a>>;
+    ) -> ServiceResultWithLifetime<'a, (Vec<models::Product>, u64)>;
 
     fn upload_image<'a>(
         &'a self,
         file_name: String,
-        file_data: Vec<u8>,
+        file_data: axum::body::Bytes,
         content_type: String,
     ) -> Pin<Box<dyn Future<Output = Result<String, ServiceError>> + Send + 'a>>;
 }
@@ -120,19 +122,29 @@ impl<R: ProductRepo> ProductService for ProductServiceImpl<R> {
         let client = self.s3_client.clone();
         let bucket = self.s3_bucket.clone();
         Box::pin(async move {
-            let (mut products, total) = self.repo
+            let (products, total) = self.repo
                 .list_products_blocking(page, page_size, product_name)
                 .await
                 .map_err(ServiceError::Database)?;
             
-            for product in &mut products {
-                if let Some(key) = &product.image_url 
-                    && !key.starts_with("http")
-                    && let Some(url) = sign_url(&client, &bucket, key).await 
-                {
-                    product.image_url = Some(url);
-                }
-            }
+            let products = stream::iter(products)
+                .map(|mut product| {
+                    let client = client.clone();
+                    let bucket = bucket.clone();
+                    async move {
+                        if let Some(key) = &product.image_url 
+                            && !key.starts_with("http") 
+                            && let Some(url) = sign_url(&client, &bucket, key).await 
+                        {
+                            product.image_url = Some(url);
+                        }
+                        product
+                    }
+                })
+                .buffered(10) // 保持顺序并发
+                .collect::<Vec<_>>()
+                .await;
+
             Ok((products, total))
         })
     }
@@ -141,7 +153,7 @@ impl<R: ProductRepo> ProductService for ProductServiceImpl<R> {
     fn upload_image<'a>(
         &'a self,
         file_name: String,
-        file_data: Vec<u8>,
+        file_data: axum::body::Bytes,
         content_type: String,
     ) -> ServiceResultWithLifetime<'a, String> {
         let client = self.s3_client.clone();

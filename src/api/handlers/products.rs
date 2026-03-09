@@ -150,7 +150,7 @@ pub async fn upload_image_handler(
              let content_type = field.content_type().unwrap_or("application/octet-stream").to_string();
              let data = field.bytes().await.map_err(|e| ServiceError::Internal(e.to_string()))?;
              
-             let key = app_state.product_service.upload_image(new_file_name, data.to_vec(), content_type).await?;
+             let key = app_state.product_service.upload_image(new_file_name, data, content_type).await?;
              return Ok(Json(serde_json::json!({
                  "code": 0,
                  "msg": "success",

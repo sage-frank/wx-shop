@@ -54,9 +54,13 @@ pub async fn print_request_body(
         query
     );
 
-    // 如果是 multipart/form-data，直接跳过 Body 读取
-    if content_type.starts_with("multipart/form-data") {
-        tracing::info!("Body: [Multipart data, skipping log]");
+    // 如果不是 debug 模式，或者文件上传，跳过 Body 读取
+    if !tracing::enabled!(tracing::Level::DEBUG) || content_type.starts_with("multipart/form-data") {
+        if content_type.starts_with("multipart/form-data") {
+            tracing::debug!("Body: [Multipart data, skipping log]");
+        } else {
+            tracing::debug!("Body: [Skipping log (not debug level)]");
+        }
         let req = Request::from_parts(parts, body);
         return Ok(next.run(req).await);
     }
@@ -76,15 +80,11 @@ pub async fn print_request_body(
     // 异步记录日志
     if bytes.len() > MAX_BODY_SIZE {
         let len = bytes.len();
-        tokio::spawn(async move {
-            tracing::info!("Body: [Too large to log, size={}]", len);
-        });
+        // 直接打印，避免 spawn
+        tracing::debug!("Body: [Too large to log, size={}]", len);
     } else {
-        // 克隆 bytes 用于异步日志记录（Bytes 是引用计数，克隆开销很小）
-        let log_bytes = bytes.clone();
-        tokio::spawn(async move {
-            log_body_content(log_bytes, content_type).await;
-        });
+        // 直接打印
+        log_body_content(&bytes, &content_type).await;
     }
 
     // 重构 Request 继续处理
@@ -92,26 +92,26 @@ pub async fn print_request_body(
     Ok(next.run(req).await)
 }
 
-async fn log_body_content(bytes: Bytes, content_type: String) {
+async fn log_body_content(bytes: &Bytes, content_type: &str) {
     // 尝试解析并打印
     // 优先尝试 JSON
     if content_type.contains("json") {
-        if let Ok(mut json_val) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+        if let Ok(mut json_val) = serde_json::from_slice::<serde_json::Value>(bytes) {
             // 截断大字段
             truncate_json_strings(&mut json_val, 200); // 字符串超过 200 字符就截断
-            tracing::info!("Body (JSON): {}", json_val);
+            tracing::debug!("Body (JSON): {}", json_val);
         } else {
             // JSON 解析失败，回退到字符串打印
-            log_raw_string(&bytes);
+            log_raw_string(bytes);
         }
     } else if content_type.contains("text")
         || content_type.contains("xml")
         || content_type.contains("x-www-form-urlencoded")
     {
-        log_raw_string(&bytes);
+        log_raw_string(bytes);
     } else {
         // 二进制或其他
-        tracing::info!(
+        tracing::debug!(
             "Body (Other): [Content type: {}, size={}]",
             content_type,
             bytes.len()
@@ -123,9 +123,9 @@ fn log_raw_string(bytes: &[u8]) {
     const MAX_LOG_CHARS: usize = 1000;
     let s = String::from_utf8_lossy(bytes);
     if s.len() > MAX_LOG_CHARS {
-        tracing::info!("Body (Raw): {}... [TRUNCATED]", &s[..MAX_LOG_CHARS]);
+        tracing::debug!("Body (Raw): {}... [TRUNCATED]", &s[..MAX_LOG_CHARS]);
     } else {
-        tracing::info!("Body (Raw): {}", s);
+        tracing::debug!("Body (Raw): {}", s);
     }
 }
 

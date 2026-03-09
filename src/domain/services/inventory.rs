@@ -23,7 +23,7 @@ pub trait InventoryService: Send + Sync {
         page: u32,
         page_size: u32,
         product_name: Option<String>,
-    ) -> Pin<Box<dyn Future<Output = Result<(Vec<Inventory>, u64), ServiceError>> + Send + 'a>>;
+    ) -> ServiceResultWithLifetime<'a, (Vec<Inventory>, u64)>;
 
     fn update_inventory<'a>(
         &'a self,
